@@ -98,7 +98,7 @@ export interface ConfigCounts {
   hooks: number;
 }
 
-// === Bridge Output (written to /tmp/shannon-status.json) ===
+// === Bridge Output (written to ~/Library/Caches/shannon/status.json) ===
 
 export interface ShannonBridgeData {
   session_id: string | null;
