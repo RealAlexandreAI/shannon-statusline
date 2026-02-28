@@ -35,6 +35,7 @@ export interface StdinData {
   exceeds_200k_tokens?: boolean;
   vim?: { mode?: string };
   agent?: { name?: string };
+  permission_mode?: string;
 }
 
 // === Transcript Parsed Data ===
@@ -173,5 +174,6 @@ export interface ShannonBridgeData {
   session_duration_ms: number | null;
   vim_mode: string | null;
   agent_name: string | null;
+  permission_mode: string | null;
   timestamp: number;
 }

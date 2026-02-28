@@ -145,6 +145,7 @@ function assembleBridgeData(
 
     vim_mode: stdin.vim?.mode ?? null,
     agent_name: stdin.agent?.name ?? null,
+    permission_mode: stdin.permission_mode ?? null,
     timestamp: Date.now(),
   };
 }
