@@ -30,11 +30,19 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
   }
 
   // Count MCP servers from settings
+  const configuredDir =
+    process.env.CLAUDE_CONFIG_DIR && process.env.CLAUDE_CONFIG_DIR.trim()
+      ? expandTilde(process.env.CLAUDE_CONFIG_DIR.trim(), home)
+      : null;
   const settingsPath = path.join(home, ".claude", "settings.json");
+  const configuredSettingsPath = configuredDir
+    ? path.join(configuredDir, "settings.json")
+    : null;
   const projectSettingsPath = path.join(cwd, ".claude", "settings.json");
   const mcpServers = new Set<string>();
 
-  for (const sp of [settingsPath, projectSettingsPath]) {
+  for (const sp of [settingsPath, configuredSettingsPath, projectSettingsPath]) {
+    if (!sp) continue;
     try {
       if (fileExists(sp)) {
         const content = fs.readFileSync(sp, "utf8");
@@ -53,15 +61,21 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
   result.mcp = mcpServers.size;
 
   // Count hooks
+  const hookSettingsCandidates = [settingsPath, configuredSettingsPath];
+  const hookEventNames = new Set<string>();
   try {
-    if (fileExists(settingsPath)) {
-      const content = fs.readFileSync(settingsPath, "utf8");
+    for (const sp of hookSettingsCandidates) {
+      if (!sp || !fileExists(sp)) continue;
+      const content = fs.readFileSync(sp, "utf8");
       const settings = JSON.parse(content);
       const hooks = settings?.hooks;
       if (hooks && typeof hooks === "object") {
-        result.hooks = Object.keys(hooks).length;
+        for (const name of Object.keys(hooks)) {
+          hookEventNames.add(name);
+        }
       }
     }
+    result.hooks = hookEventNames.size;
   } catch {
     // Ignore
   }
@@ -83,4 +97,11 @@ function dirExists(p: string): boolean {
   } catch {
     return false;
   }
+}
+
+function expandTilde(input: string, home: string): string {
+  if (!home) return input;
+  if (input === "~") return home;
+  if (input.startsWith("~/")) return path.join(home, input.slice(2));
+  return input;
 }
