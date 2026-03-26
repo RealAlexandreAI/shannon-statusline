@@ -30,10 +30,9 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
   }
 
   // Count MCP servers from settings
-  const configuredDir =
-    process.env.CLAUDE_CONFIG_DIR && process.env.CLAUDE_CONFIG_DIR.trim()
-      ? expandTilde(process.env.CLAUDE_CONFIG_DIR.trim(), home)
-      : null;
+  const configuredDir = process.env.CLAUDE_CONFIG_DIR?.trim()
+    ? expandTilde(process.env.CLAUDE_CONFIG_DIR.trim(), home)
+    : null;
   const settingsPath = path.join(home, ".claude", "settings.json");
   const configuredSettingsPath = configuredDir
     ? path.join(configuredDir, "settings.json")
@@ -41,7 +40,11 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
   const projectSettingsPath = path.join(cwd, ".claude", "settings.json");
   const mcpServers = new Set<string>();
 
-  for (const sp of [settingsPath, configuredSettingsPath, projectSettingsPath]) {
+  for (const sp of [
+    settingsPath,
+    configuredSettingsPath,
+    projectSettingsPath,
+  ]) {
     if (!sp) continue;
     try {
       if (fileExists(sp)) {

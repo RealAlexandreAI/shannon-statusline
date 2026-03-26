@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as readline from "node:readline";
 import type {
-  TranscriptData,
-  ToolEntry,
   AgentEntry,
   TodoItem,
+  ToolEntry,
+  TranscriptData,
 } from "./types.js";
 
 const MAX_TOOLS = 20;
@@ -12,7 +12,7 @@ const MAX_AGENTS = 10;
 const MAX_FILES = 20;
 
 export async function parseTranscript(
-  transcriptPath: string
+  transcriptPath: string,
 ): Promise<TranscriptData> {
   const result: TranscriptData = {
     tools: [],
@@ -51,7 +51,7 @@ export async function parseTranscript(
           toolCountMap,
           fileSet,
           latestTodos,
-          result
+          result,
         );
       } catch {
         // Skip malformed lines
@@ -77,7 +77,7 @@ function processEntry(
   toolCountMap: Map<string, number>,
   fileSet: Set<string>,
   latestTodos: TodoItem[],
-  result: TranscriptData
+  result: TranscriptData,
 ): void {
   const timestamp = entry.timestamp
     ? new Date(entry.timestamp as string)
@@ -127,8 +127,8 @@ function processEntry(
                 ({
                   content: (t.content as string) ?? (t.subject as string) ?? "",
                   status: (t.status as TodoItem["status"]) ?? "pending",
-                }) satisfies TodoItem
-            )
+                }) satisfies TodoItem,
+            ),
           );
         }
       } else {
@@ -162,7 +162,7 @@ function processEntry(
 
 function extractFilePath(
   toolName: string,
-  input: Record<string, unknown> | undefined
+  input: Record<string, unknown> | undefined,
 ): string | null {
   if (!input) return null;
   if (toolName === "Read" || toolName === "Write" || toolName === "Edit") {
@@ -173,7 +173,7 @@ function extractFilePath(
 
 function extractTarget(
   toolName: string,
-  input: Record<string, unknown> | undefined
+  input: Record<string, unknown> | undefined,
 ): string | null {
   if (!input) return null;
   switch (toolName) {
@@ -187,7 +187,7 @@ function extractTarget(
     case "Bash": {
       const cmd = input.command as string | undefined;
       if (!cmd) return null;
-      return cmd.length > 40 ? cmd.slice(0, 40) + "..." : cmd;
+      return cmd.length > 40 ? `${cmd.slice(0, 40)}...` : cmd;
     }
     case "WebFetch":
       return (input.url as string) ?? null;

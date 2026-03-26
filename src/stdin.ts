@@ -1,10 +1,10 @@
 import type { StdinData } from "./types.js";
 
 export async function readStdin(): Promise<StdinData | null> {
-  if (process.stdin.isTTY) {
-    return null;
-  }
-
+  // Note: process.stdin.isTTY check intentionally removed.
+  // When Claude Code invokes the statusline plugin via PTY subprocess,
+  // stdin.isTTY is true but data IS available via pipe. The empty-input
+  // guard below handles the genuinely-empty case correctly.
   const chunks: string[] = [];
   try {
     process.stdin.setEncoding("utf8");

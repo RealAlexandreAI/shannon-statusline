@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
-import * as path from "node:path";
 import * as os from "node:os";
+import * as path from "node:path";
 import type { ShannonBridgeData } from "./types.js";
 
 /**
@@ -32,7 +32,7 @@ export function writeBridge(data: ShannonBridgeData): void {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     }
     const json = JSON.stringify(data);
-    fs.writeFileSync(BRIDGE_PATH, json + "\n", {
+    fs.writeFileSync(BRIDGE_PATH, `${json}\n`, {
       encoding: "utf8",
       mode: 0o600,
     });

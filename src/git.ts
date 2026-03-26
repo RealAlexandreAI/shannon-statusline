@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { GitStatus, GitFileStats } from "./types.js";
+import type { GitFileStats, GitStatus } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_TIMEOUT = 1000;
@@ -13,7 +13,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatus | null> {
     const { stdout: branchOut } = await execFileAsync(
       "git",
       ["rev-parse", "--abbrev-ref", "HEAD"],
-      { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" }
+      { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" },
     );
     const branch = branchOut.trim();
     if (!branch) return null;
@@ -25,7 +25,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatus | null> {
       const { stdout: statusOut } = await execFileAsync(
         "git",
         ["--no-optional-locks", "status", "--porcelain"],
-        { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" }
+        { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" },
       );
       const trimmed = statusOut.trim();
       isDirty = trimmed.length > 0;
@@ -43,7 +43,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatus | null> {
       const { stdout: revOut } = await execFileAsync(
         "git",
         ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
-        { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" }
+        { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" },
       );
       const parts = revOut.trim().split(/\s+/);
       if (parts.length === 2) {

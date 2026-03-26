@@ -1,12 +1,12 @@
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { writeBridge } from "./bridge.js";
+import { countConfigs } from "./config-counter.js";
+import { getGitStatus } from "./git.js";
+import { render } from "./render.js";
 import { readStdin } from "./stdin.js";
 import { parseTranscript } from "./transcript.js";
-import { getGitStatus } from "./git.js";
-import { countConfigs } from "./config-counter.js";
-import { render } from "./render.js";
-import { writeBridge } from "./bridge.js";
 import type { ShannonBridgeData } from "./types.js";
-import { fileURLToPath } from "node:url";
-import { realpathSync } from "node:fs";
 
 export async function main(): Promise<void> {
   try {
