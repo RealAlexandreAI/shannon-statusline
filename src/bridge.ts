@@ -9,6 +9,10 @@ import type { ShannonBridgeData } from "./types.js";
  * Avoids /tmp which is world-writable and susceptible to symlink/TOCTOU attacks.
  */
 function getBridgePath(): string {
+  // Allow consumers to override the bridge output path via environment variable
+  if (process.env.SHANNON_BRIDGE_PATH) {
+    return process.env.SHANNON_BRIDGE_PATH;
+  }
   const platform = os.platform();
   let cacheDir: string;
   if (platform === "darwin") {
