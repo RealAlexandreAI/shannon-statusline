@@ -8,6 +8,60 @@
 
 ---
 
+## 🤖 For Agent — 自动安装
+
+> 如果你是 AI Agent（如 Claude Code），请阅读并执行下方代码块完成全自动安装。
+
+```agent-install
+# Step 1: Install shannon-statusline globally
+npm install -g shannon-statusline
+
+# Step 2: Merge hooks into ~/.claude/settings.json
+# Read the current file (create if missing), then deep-merge the hooks below.
+# DO NOT overwrite existing hooks — append PostToolUse and Stop entries.
+
+SETTINGS_FILE="$HOME/.claude/settings.json"
+mkdir -p "$(dirname "$SETTINGS_FILE")"
+
+# If file doesn't exist, initialize with empty object
+if [ ! -f "$SETTINGS_FILE" ]; then
+  echo '{}' > "$SETTINGS_FILE"
+fi
+
+# Use node to safely merge hooks (avoids clobbering existing config)
+node - <<'EOF'
+const fs = require('fs');
+const path = require('path');
+
+const file = path.join(process.env.HOME, '.claude', 'settings.json');
+let config = {};
+try { config = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
+
+config.hooks ??= {};
+
+const hookEntry = { type: 'command', command: 'shannon-statusline' };
+const matcher   = { matcher: '', hooks: [hookEntry] };
+
+for (const event of ['PostToolUse', 'Stop']) {
+  config.hooks[event] ??= [];
+  const already = config.hooks[event].some(
+    g => g.hooks?.some(h => h.command === 'shannon-statusline')
+  );
+  if (!already) config.hooks[event].push(matcher);
+}
+
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+console.log('✔ shannon-statusline hooks installed →', file);
+EOF
+
+# Step 3: Verify installation
+shannon-statusline --version 2>/dev/null && echo "✔ binary OK" || echo "⚠ binary not found — check PATH"
+```
+
+完成后 `~/.claude/settings.json` 中将包含 `PostToolUse` 和 `Stop` 两个钩子，每次 Claude Code 调用工具或停止时自动渲染 HUD。
+
+---
+
 ## 安装
 
 ```bash
