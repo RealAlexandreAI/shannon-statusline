@@ -1,46 +1,84 @@
 import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
+import * as net from "node:net";
 import type { ShannonBridgeData } from "./types.js";
 
 /**
- * Resolve the bridge file path in the user-specific cache directory.
- * macOS: ~/Library/Caches/shannon/status.json
- * Avoids /tmp which is world-writable and susceptible to symlink/TOCTOU attacks.
+ * Resolve the Unix socket path: /tmp/shannon-<uid>.sock
+ * Environment variable SHANNON_SOCKET_PATH overrides for testing.
  */
-function getBridgePath(): string {
-  // Allow consumers to override the bridge output path via environment variable
-  if (process.env.SHANNON_BRIDGE_PATH) {
-    return process.env.SHANNON_BRIDGE_PATH;
+function getSocketPath(): string {
+  if (process.env.SHANNON_SOCKET_PATH) {
+    return process.env.SHANNON_SOCKET_PATH;
   }
-  const platform = os.platform();
-  let cacheDir: string;
-  if (platform === "darwin") {
-    cacheDir = path.join(os.homedir(), "Library", "Caches");
-  } else if (platform === "win32") {
-    cacheDir =
-      process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local");
-  } else {
-    cacheDir = process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), ".cache");
-  }
-  return path.join(cacheDir, "shannon", "status.json");
+  return `/tmp/shannon-${process.getuid?.() ?? 0}.sock`;
 }
 
-const BRIDGE_PATH = getBridgePath();
+const SOCKET_PATH = getSocketPath();
 
+/** Socket send timeout (ms) */
+const SOCKET_TIMEOUT = 2000;
+
+/**
+ * Send bridge data via Unix socket (NDJSON protocol).
+ *
+ * Message format:
+ * { "type": "status_update", "session_id": "...", ...data }
+ */
 export function writeBridge(data: ShannonBridgeData): void {
+  const bridgeMessage = {
+    type: "status_update",
+    session_id: data.session_id ?? "unknown",
+    model: data.model,
+    context_window: data.context_window,
+    cost: data.cost,
+    tool_counts: data.tool_counts,
+    tools: data.tools,
+    agents: data.agents,
+    todos: data.todos,
+    file_activity: data.file_activity,
+    config_counts: data.config_counts,
+    git: data.git,
+    session_duration_ms: data.session_duration_ms,
+    vim_mode: data.vim_mode,
+    agent_name: data.agent_name,
+    permission_mode: data.permission_mode,
+    version: data.version,
+    timestamp: data.timestamp,
+  };
+
+  const ndjsonLine = `${JSON.stringify(bridgeMessage)}\n`;
+
   try {
-    // Ensure parent directory exists
-    const dir = path.dirname(BRIDGE_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    if (!fs.existsSync(SOCKET_PATH)) {
+      return;
     }
-    const json = JSON.stringify(data);
-    fs.writeFileSync(BRIDGE_PATH, `${json}\n`, {
-      encoding: "utf8",
-      mode: 0o600,
+
+    const socket = net.createConnection({ path: SOCKET_PATH });
+    let resolved = false;
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        socket.destroy();
+      }
+    }, SOCKET_TIMEOUT);
+
+    socket.on("connect", () => {
+      socket.write(ndjsonLine, () => {
+        clearTimeout(timeout);
+        resolved = true;
+        socket.end();
+      });
+    });
+
+    socket.on("error", () => {
+      if (!resolved) {
+        clearTimeout(timeout);
+        resolved = true;
+        socket.destroy();
+      }
     });
   } catch {
-    // Silently ignore write errors
+    // Silently ignore send errors — Shannon app may not be running
   }
 }
