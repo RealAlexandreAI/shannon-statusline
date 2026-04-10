@@ -1,3 +1,4 @@
+import { shortenDisplayPath } from "./path.js";
 import { getContextPercent, getModelName } from "./stdin.js";
 import type {
   ConfigCounts,
@@ -260,64 +261,6 @@ function fmtDurationShort(ms: number): string {
   return `${hours}h ${mins}m`;
 }
 
-/**
- * Fish-shell–style path abbreviation.
- * Each middle directory component is reduced to its first character (uppercase).
- * The last 2 components are always shown in full to preserve context.
- * Home directory is replaced with ~.
- *
- * Examples:
- *   /Users/slahser/Desktop/Shannon         →  ~/S/h/D/Shannon
- *   /Users/slahser/Desktop/Shannon/src     →  ~/S/h/D/Shannon/src
- *   /tmp/workspace/session-abc/src/app.ts  →  /t/w/session-abc/src/app.ts
- */
-function fishPath(p: string, maxLen = 28): string {
-  if (!p) return "";
-
-  // Replace $HOME with ~
-  const home = process.env.HOME ?? "";
-  const display = home && p.startsWith(home) ? `~${p.slice(home.length)}` : p;
-
-  const rawParts = display.split("/");
-  const parts = rawParts.filter(Boolean);
-  if (parts.length === 0) return "";
-
-  // Always show last 2 components in full
-  const last2 = parts.slice(-2);
-  const middle = parts.slice(0, -2);
-
-  let result: string;
-  if (middle.length === 0) {
-    result = last2.join("/");
-  } else {
-    const abbreviated = middle.map((c) => c.charAt(0).toUpperCase());
-    result = [...abbreviated, ...last2].join("/");
-  }
-
-  // For absolute (non-home) paths, re-add the leading "/"
-  const isHomeRelative = display.startsWith("~");
-  const prefixed = p.startsWith("/") && !isHomeRelative ? `/${result}` : result;
-
-  // If still too long, progressively strip leading components of the end until it fits
-  if (prefixed.length > maxLen) {
-    for (let i = 1; i <= last2.length; i++) {
-      const candidate = `…/${last2.slice(-i).join("/")}`;
-      if (candidate.length <= maxLen) return candidate;
-    }
-    const filename = last2[last2.length - 1] ?? "";
-    const extStart = filename.lastIndexOf(".");
-    const ext = extStart > 0 ? filename.slice(extStart) : "";
-    const name = extStart > 0 ? filename.slice(0, extStart) : filename;
-    const avail = maxLen - 2; // "…/" = 2
-    if (avail > ext.length + 1) {
-      return `…/${name.slice(-(avail - ext.length - 1))}${ext}`;
-    }
-    return `…${ext.slice(-(maxLen - 1))}`;
-  }
-
-  return prefixed;
-}
-
 // ── Visible-width helpers ────────────────────────────────────
 
 /**
@@ -429,7 +372,13 @@ function renderProjectLine(
   const cwd = stdin.workspace?.project_dir ?? stdin.cwd ?? "";
   if (cwd) {
     parts.push(
-      `${colorize(I_PATH, C_GOLD)} ${colorize(fishPath(cwd, 30), C_GOLD)}`,
+      `${colorize(I_PATH, C_GOLD)} ${colorize(
+        shortenDisplayPath(cwd, {
+          homeDir: process.env.HOME ?? "",
+          maxLength: 30,
+        }),
+        C_GOLD,
+      )}`,
     );
   }
 
@@ -679,7 +628,12 @@ function renderToolsLine(transcript: TranscriptData): string | null {
   // Running tools (up to 3, with duration)
   const running = transcript.tools.filter((t) => t.status === "running");
   for (const t of running.slice(-3)) {
-    const target = t.target ? `: ${fishPath(t.target, 22)}` : "";
+    const target = t.target
+      ? `: ${shortenDisplayPath(t.target, {
+          homeDir: process.env.HOME ?? "",
+          maxLength: 22,
+        })}`
+      : "";
     const elapsed = fmtDurationShort(Date.now() - t.startTime.getTime());
     parts.push(
       `${colorize(I_RUN, C_HOT)} ${colorize(t.name, C_SKY)}${target} ${colorize(`(${elapsed})`, C_SLATE)}`,
