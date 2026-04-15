@@ -38,6 +38,7 @@ export function writeBridge(data: ShannonBridgeData): void {
     file_activity: data.file_activity,
     config_counts: data.config_counts,
     git: data.git,
+    workspace: data.workspace,
     session_duration_ms: data.session_duration_ms,
     vim_mode: data.vim_mode,
     agent_name: data.agent_name,
