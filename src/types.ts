@@ -99,7 +99,7 @@ export interface ConfigCounts {
   hooks: number;
 }
 
-// === Bridge Output (written to ~/Library/Caches/shannon/status.json) ===
+// === Bridge Output (sent over Unix socket /tmp/shannon-<uid>.sock as NDJSON) ===
 
 export interface ShannonBridgeData {
   session_id: string | null;
