@@ -377,13 +377,17 @@ src/
   git.ts            — Git 状态检测（branch/dirty/ahead/behind/file stats）
   config-counter.ts — 配置文件计数（CLAUDE.md/rules/MCP/hooks）
   stdin.ts          — stdin JSON payload 解析与工具函数
+  path.ts           — 路径规范化与 Fish 风格缩写
   types.ts          — 共享 TypeScript 类型定义
-dist/               — 编译输出（.gitignore，npm 发布）
+dist/               — 编译输出（.gitignore，npm 发布时打包）
 ```
 
 ---
 
-## Contributing
+## Contributing & Releasing
+
+- 开发与协作流程：[`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- 发版 SOP（semver / tag / `npm publish`）：[`RELEASING.md`](./RELEASING.md)
 
 Issues 和 PR 欢迎提交到 [github.com/RealAlexandreAI/shannon-statusline](https://github.com/RealAlexandreAI/shannon-statusline)。
 
