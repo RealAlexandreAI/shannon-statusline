@@ -105,7 +105,7 @@ function processEntry(
         fileSet.add(filePath);
       }
 
-      if (toolName === "Task") {
+      if (toolName === "Agent" || toolName === "Task") {
         // Sub-agent
         const agentEntry: AgentEntry = {
           id: block.id as string,
