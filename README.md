@@ -1,132 +1,113 @@
+<div align="center">
+
+<img src="shannon-statusline.png" alt="shannon-statusline preview" width="100%" />
+
 # shannon-statusline
 
-> 为 [Claude Code](https://claude.ai/code) 打造的赛博朋克终端 HUD —— 由 [Shannon](https://github.com/RealAlexandreAI/Shannon) 驱动。
+**赛博朋克终端 HUD for [Claude Code](https://claude.ai/code) — 7-line ANSI status, zero runtime deps, bridge-ready.**
 
-挂载在 Claude Code 的 `PostToolUse` / `Stop` 生命周期钩子，渲染实时多行 ANSI 状态条，展示模型、上下文用量、Git 状态、Token 消耗、工具活动、子 Agent 状态及 Todo 进度 —— 全部集中在一块终端 HUD 中。
+[![npm version](https://img.shields.io/npm/v/shannon-statusline?color=ff0090&label=npm)](https://www.npmjs.com/package/shannon-statusline)
+[![license](https://img.shields.io/npm/l/shannon-statusline?color=39ff14)](./LICENSE)
+[![node](https://img.shields.io/node/v/shannon-statusline?color=00bfff)](./package.json)
 
-![shannon-statusline preview](shannon-statusline.png)
+</div>
+
+挂载在 Claude Code 的 `PostToolUse` / `Stop` 生命周期钩子上，渲染一块多行 ANSI 状态条，集中展示模型、上下文用量、Git 状态、Token 消耗、工具活动、子 Agent 状态、Todo 进度。同时把全部数据写入一份 JSON Bridge 文件，供下游 GUI（如 [Shannon](https://github.com/RealAlexandreAI/Shannon)）消费。
 
 ---
 
-## 🤖 For Agent — 自动安装
+## ⚡ 30 秒安装
 
-> 如果你是 AI Agent（如 Claude Code），请阅读并执行下方代码块完成全自动安装。
+```bash
+npm install -g shannon-statusline
+```
+
+加到 `~/.claude/settings.json`：
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "shannon-statusline" }] }
+    ],
+    "Stop": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "shannon-statusline" }] }
+    ]
+  }
+}
+```
+
+完成。下次 Claude Code 调用任意工具或停止时，HUD 自动渲染。
+
+<details>
+<summary>🤖 想让 AI Agent 全自动安装？点这里展开 install script</summary>
 
 ```agent-install
 # Step 1: Install shannon-statusline globally
 npm install -g shannon-statusline
 
-# Step 2: Merge hooks into ~/.claude/settings.json
-# Read the current file (create if missing), then deep-merge the hooks below.
-# DO NOT overwrite existing hooks — append PostToolUse and Stop entries.
-
+# Step 2: Merge hooks into ~/.claude/settings.json (deep-merge, won't clobber existing hooks)
 SETTINGS_FILE="$HOME/.claude/settings.json"
 mkdir -p "$(dirname "$SETTINGS_FILE")"
+[ ! -f "$SETTINGS_FILE" ] && echo '{}' > "$SETTINGS_FILE"
 
-# If file doesn't exist, initialize with empty object
-if [ ! -f "$SETTINGS_FILE" ]; then
-  echo '{}' > "$SETTINGS_FILE"
-fi
-
-# Use node to safely merge hooks (avoids clobbering existing config)
 node - <<'EOF'
 const fs = require('fs');
 const path = require('path');
-
 const file = path.join(process.env.HOME, '.claude', 'settings.json');
 let config = {};
 try { config = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
-
 config.hooks ??= {};
-
 const hookEntry = { type: 'command', command: 'shannon-statusline' };
 const matcher   = { matcher: '', hooks: [hookEntry] };
-
 for (const event of ['PostToolUse', 'Stop']) {
   config.hooks[event] ??= [];
-  const already = config.hooks[event].some(
-    g => g.hooks?.some(h => h.command === 'shannon-statusline')
-  );
+  const already = config.hooks[event].some(g => g.hooks?.some(h => h.command === 'shannon-statusline'));
   if (!already) config.hooks[event].push(matcher);
 }
-
 fs.writeFileSync(file, JSON.stringify(config, null, 2));
 console.log('✔ shannon-statusline hooks installed →', file);
 EOF
 
-# Step 3: Verify installation
+# Step 3: Verify
 shannon-statusline --version 2>/dev/null && echo "✔ binary OK" || echo "⚠ binary not found — check PATH"
 ```
 
-完成后 `~/.claude/settings.json` 中将包含 `PostToolUse` 和 `Stop` 两个钩子，每次 Claude Code 调用工具或停止时自动渲染 HUD。
+</details>
 
----
+<details>
+<summary>项目级 hook（只在某个仓库启用）</summary>
 
-## 安装
-
-```bash
-npm install -g shannon-statusline
-# or
-bun add -g shannon-statusline
-```
-
-## 在 Claude Code 中使用
-
-### 全局 hook（所有项目）
-
-添加到 `~/.claude/settings.json`：
+加到项目根目录 `.claude/settings.json`：
 
 ```json
 {
   "hooks": {
     "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "shannon-statusline"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "shannon-statusline"
-          }
-        ]
-      }
+      { "matcher": "", "hooks": [{ "type": "command", "command": "shannon-statusline" }] }
     ]
   }
 }
 ```
 
-### 项目级 hook
-
-添加到项目根目录的 `.claude/settings.json`：
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "shannon-statusline" }]
-      }
-    ]
-  }
-}
-```
+</details>
 
 ---
 
-## HUD 格式
+## ✨ 它做什么
 
-渲染 7 行输出，分两区（状态区 + 活动区），中间由紫色分隔线隔开：
+| | |
+|---|---|
+| 🪶 **Zero runtime deps** | `dependencies: {}`，唯一依赖是 Node.js 自带 stdlib |
+| ⚡ **快** | 整个渲染管线 < 50ms（实测中位数），包括 transcript 解析、git status、配置文件扫描 |
+| 🎨 **不用 Nerd Font** | 全部图标走标准 Unicode 块（Greek、Arrows、Math Ops、Misc Technical），SF Mono / Menlo / Monaco 即可正常显示 |
+| 🌉 **Bridge 就绪** | 同时把结构化数据写到 JSON 文件，供 GUI 消费（[Shannon](https://github.com/RealAlexandreAI/Shannon) 是当前唯一已知消费者） |
+| 🔬 **解析丰富** | JSONL transcript 提取工具调用 / 子 Agent / Todo / 文件活动；`git status -b` 拿分支 / dirty / ahead / behind / file stats；扫 CLAUDE.md / rules / MCP / hooks 配置数 |
+| 🌈 **真彩色** | 上下文进度条按用量在暗绿 → 霓虹酸绿 → 霓虹橙 → 霓虹粉之间渐变，超 85% 触发 `▲ high usage` 警告 |
+
+---
+
+## 🖥 HUD 长什么样
 
 ```
 λ claude-opus-4-5 │ ⌘ ~/D/Shannon │ ⎇ main* ↑2 !3 +1 │ ✦ 12m │ @myagent │ ⊟ auto
@@ -138,7 +119,13 @@ bun add -g shannon-statusline
 ▸ Fix login bug (3/5)
 ```
 
-### 第 1 行 — 项目信息
+7 行 / 两区：
+
+- **状态区**（上 3 行 + 分隔线）—— 项目信息、上下文用量、配置加载
+- **活动区**（下 3 行）—— 工具活动、子 Agent 活动、Todo 进度
+
+<details>
+<summary>第 1 行 · 项目信息（点开看每个图标含义）</summary>
 
 | 图标 | 含义 | 颜色 |
 |------|------|------|
@@ -155,17 +142,18 @@ bun add -g shannon-statusline
 | `@name` | Agent 名称 | neon pink |
 | `⊟` | 权限模式（auto/approve-all/deny-all） | electric purple |
 
-### 第 2 行 — 上下文用量
+</details>
 
-真彩色渐变进度条，颜色随危险程度变化：
+<details>
+<summary>第 2 行 · 上下文用量（含真彩色进度条规则）</summary>
+
+行格式：`⊡ ████░░ 65% (200k)  ↑ 36k  ↓ 300  ⊗ 8.5k`
 
 | 范围 | 颜色渐变 | 含义 |
 |------|---------|------|
 | < 70% | 暗绿 → 霓虹酸绿 `#39ff14` | 正常 |
 | 70–84% | 暗焦橙 → 霓虹橙 `#ff6b00` | 注意 |
 | ≥ 85% | 深洋红 → 霓虹粉 `#ff0090` | 危险 + `▲ high usage` 警告 |
-
-行格式：`⊡ ████░░ 65% (200k)  ↑ 36k  ↓ 300  ⊗ 8.5k`
 
 | 图标 | 含义 |
 |------|------|
@@ -174,7 +162,10 @@ bun add -g shannon-statusline
 | `↓` | Output tokens |
 | `⊗` | 缓存命中 tokens（cache_read + cache_creation） |
 
-### 第 3 行 — 配置加载
+</details>
+
+<details>
+<summary>第 3 行 · 配置加载</summary>
 
 | 图标 | 含义 | 颜色 |
 |------|------|------|
@@ -185,41 +176,39 @@ bun add -g shannon-statusline
 
 如果全部为 0 则此行不显示。
 
-### 分隔线
+</details>
 
-`────────────────────────────────────────`（40 × electric purple）
+<details>
+<summary>第 5–7 行 · 活动区</summary>
 
-### 第 5 行 — 工具活动
-
-运行中的工具（最近 3 个）+ 完成工具统计（按频率排序，最多 5 项）：
+**第 5 行 · 工具活动** —— 运行中的工具（最近 3 个）+ 完成工具统计（按频率排序，最多 5 项）：
 
 ```
 ↻ Bash: ~/D/Shannon/src (3s) │ ✔ Read ×12 │ ✔ Edit ×7
 ```
 
-| 图标 | 含义 |
-|------|------|
+| 图标 | 含义 | 颜色 |
+|------|------|------|
 | `↻` | 正在运行 | neon orange |
 | `✔` | 已完成 | matrix green |
 
-### 第 6 行 — Agent 活动
-
-运行中的子 Agent（最近 3 个）+ 已完成 Agent（最近 3 个）：
+**第 6 行 · Agent 活动** —— 运行中的子 Agent（最近 3 个）+ 已完成 Agent（最近 3 个）：
 
 ```
 ↻ Task [claude-haiku-3-5]: implement feature (1m 2s) │ ✔ Task: debug session
 ```
 
-### 第 7 行 — Todo 进度
+**第 7 行 · Todo 进度**：
 
 ```
 ▸ Fix login bug (3/5)       # 有进行中 todo
 ✔ All done (5/5)            # 全部完成
 ```
 
----
+</details>
 
-## 图标速查表
+<details>
+<summary>图标速查表</summary>
 
 | 图标 | Unicode | 用途 |
 |------|---------|------|
@@ -241,37 +230,30 @@ bun add -g shannon-statusline
 | `※` | U+203B | CLAUDE.md 配置文件 |
 | `↩` | U+21A9 | Hooks（事件触发器） |
 
-> 所有图标均来自标准 Unicode 块（Greek、Arrows、Mathematical Ops、Misc Technical、Geometric Shapes、Dingbats），**不需要 Nerd Font**，SF Mono、Menlo、Monaco 均可正常显示。
+> 全部来自标准 Unicode 块，**不需要 Nerd Font**。
+
+</details>
 
 ---
 
-## 工作原理
+## 🌉 Bridge JSON
 
-Claude Code 触发 hook 时，通过 **stdin** 传入 JSON payload。`shannon-statusline` 读取后：
-
-1. **解析** payload（model、context window、session ID、transcript path、CWD）
-2. 并行收集三路数据：
-   - **Transcript** — 解析最近 JSONL 文件，统计工具调用、子 Agent、Todo、文件活动
-   - **Git** — `git status --porcelain -b` 获取分支、dirty 状态、ahead/behind、文件统计
-   - **Configs** — 扫描 CLAUDE.md、rules、MCP、hooks 文件数量
-3. **渲染** 7 行 ANSI HUD 到 stdout（所有空格替换为 NBSP，防止终端折行）
-4. **写入** Bridge 文件（`~/Library/Caches/shannon/status.json`），供 Shannon GUI 实时读取
-
----
-
-## 环境变量
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `SHANNON_BRIDGE_PATH` | `~/Library/Caches/shannon/status.json`（macOS） | 覆盖 Bridge JSON 输出路径 |
+每次渲染完，statusline 会把同一帧数据序列化成 JSON 写到一个文件：
 
 ```bash
+# 默认路径（macOS）
+~/Library/Caches/shannon/status.json
+
+# 覆盖
 SHANNON_BRIDGE_PATH=/tmp/my-bridge.json shannon-statusline
 ```
 
----
+| 环境变量 | 默认 | 说明 |
+|---------|------|------|
+| `SHANNON_BRIDGE_PATH` | `~/Library/Caches/shannon/status.json`（macOS） | Bridge JSON 输出路径 |
 
-## Bridge 文件格式
+<details>
+<summary>完整 schema（点开看字段定义）</summary>
 
 ```json
 {
@@ -344,53 +326,53 @@ SHANNON_BRIDGE_PATH=/tmp/my-bridge.json shannon-statusline
 }
 ```
 
+> Schema 是公开契约。修改字段需 bump 版本，规则见 [`CONTRIBUTING.md`](./CONTRIBUTING.md#bridge-json-schema-变更政策)。
+
+</details>
+
+---
+
+## 工作原理
+
+Claude Code 触发 hook 时，通过 stdin 把 JSON payload 传给 `shannon-statusline`：
+
+1. **解析** payload —— model / context window / session ID / transcript path / cwd
+2. **并行收集** 三路数据
+   - **Transcript** —— 解析最近 JSONL 文件，统计工具 / 子 Agent / Todo / 文件活动
+   - **Git** —— `git status --porcelain -b` 拿分支、dirty、ahead/behind、文件统计
+   - **Configs** —— 扫描 `CLAUDE.md` / rules / MCP / hooks 文件数
+3. **渲染** 7 行 ANSI HUD 到 stdout（所有空格替换为 NBSP，防止终端折行）
+4. **写入** Bridge JSON 文件，供 GUI 消费
+
 ---
 
 ## Shannon GUI 集成
 
-[Shannon](https://github.com/RealAlexandreAI/Shannon) 监听 Bridge 文件变化，实时更新侧边栏 **Agent Status** 面板——展示模型、上下文进度条、工具统计网格、文件活动时间线。
+[Shannon](https://github.com/RealAlexandreAI/Shannon) 是一个 macOS Tauri app，监听 Bridge 文件 + 通过 Unix socket 接收 NDJSON 流，把数据实时渲染到侧边栏 **Agent Status** 面板：模型、上下文进度条、工具统计、文件活动 timeline、子 Agent 列表、Todo 进度。
 
-无需额外配置，Shannon 自动从默认路径读取，或通过 `SHANNON_BRIDGE_PATH` 覆盖。
+无需额外配置。Shannon 会从默认路径（`~/Library/Caches/shannon/status.json`）读取，或通过环境变量覆盖。
+
+> Shannon 是私有 repo，statusline 是独立公开 npm 包。两者通过 Bridge JSON 这一公开契约解耦，互不依赖对方源码。
 
 ---
 
-## 开发
+## 开发 / 贡献 / 发版
+
+- 开发指南、项目结构、代码风格、与 Shannon GUI 的端到端验证：[`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- 发版 SOP（semver / git tag / 手动 `npm publish`）：[`RELEASING.md`](./RELEASING.md)
+
+Issues 和 PR 提到 [github.com/RealAlexandreAI/shannon-statusline](https://github.com/RealAlexandreAI/shannon-statusline)。
 
 ```bash
 git clone https://github.com/RealAlexandreAI/shannon-statusline.git
 cd shannon-statusline
 bun install
-bun run build      # TypeScript → dist/
-
-# 用示例 payload 测试
-bun run test:stdin
-```
-
-### 项目结构
-
-```
-src/
-  index.ts          — 入口：stdin 解析 → 并行数据收集 → render + bridge
-  render.ts         — 赛博朋克 ANSI HUD 渲染（7 行输出）
-  bridge.ts         — 写入 JSON Bridge 文件供 Shannon GUI 读取
-  transcript.ts     — JSONL transcript 解析（工具/Agent/Todo/文件活动）
-  git.ts            — Git 状态检测（branch/dirty/ahead/behind/file stats）
-  config-counter.ts — 配置文件计数（CLAUDE.md/rules/MCP/hooks）
-  stdin.ts          — stdin JSON payload 解析与工具函数
-  path.ts           — 路径规范化与 Fish 风格缩写
-  types.ts          — 共享 TypeScript 类型定义
-dist/               — 编译输出（.gitignore，npm 发布时打包）
+bun run build         # TypeScript → dist/
+bun run test:stdin    # 用示例 payload 跑通管线
 ```
 
 ---
 
-## Contributing & Releasing
-
-- 开发与协作流程：[`CONTRIBUTING.md`](./CONTRIBUTING.md)
-- 发版 SOP（semver / tag / `npm publish`）：[`RELEASING.md`](./RELEASING.md)
-
-Issues 和 PR 欢迎提交到 [github.com/RealAlexandreAI/shannon-statusline](https://github.com/RealAlexandreAI/shannon-statusline)。
-
 ## License
 
-MIT © [RealAlexandreAI](https://github.com/RealAlexandreAI)
+[MIT](./LICENSE)
