@@ -36,6 +36,7 @@ const C_SLATE = "\x1b[38;5;99m";
 const C_HOT = "\x1b[38;5;208m";
 const C_GOLD = "\x1b[38;5;220m";
 const C_AQUA = "\x1b[38;5;44m";
+const C_GRAY = "\x1b[38;5;240m"; // gray-black for separators
 
 // True color (24-bit) helpers
 function rgb(r: number, g: number, b: number): string {
@@ -105,7 +106,7 @@ function dim(text: string): string {
 }
 
 /** Colored segment separator */
-const SEP = colorize("│", C_SLATE);
+const SEP = colorize("│", C_GRAY);
 
 // ── Icons ────────────────────────────────────────────────────
 //
@@ -159,6 +160,7 @@ const I_HOOK = "↩";
 // ── Terminal width detection ────────────────────────────────
 
 function getTerminalWidth(): number | null {
+  // Try stdout first
   const stdoutCols = process.stdout?.columns;
   if (
     typeof stdoutCols === "number" &&
@@ -167,6 +169,7 @@ function getTerminalWidth(): number | null {
   ) {
     return Math.floor(stdoutCols);
   }
+  // Try stderr
   const stderrCols = process.stderr?.columns;
   if (
     typeof stderrCols === "number" &&
@@ -175,6 +178,16 @@ function getTerminalWidth(): number | null {
   ) {
     return Math.floor(stderrCols);
   }
+  // Try getWindowSize (may work when columns is not set)
+  try {
+    const size = process.stdout?.getWindowSize?.();
+    if (Array.isArray(size) && size.length >= 2 && size[0] > 0) {
+      return size[0];
+    }
+  } catch {
+    // ignore
+  }
+  // Fallback env
   const envCols = Number.parseInt(process.env.COLUMNS ?? "", 10);
   if (Number.isFinite(envCols) && envCols > 0) return envCols;
   return null;
@@ -306,11 +319,15 @@ const RAIN_COL_OFFSET_MS = 280;
  * Generate a single rain character cell for a given (row, col, time).
  *
  * The drop head falls from row 0 → totalRows-1 cyclically.
- * Distance from head determines brightness:
- *   0 = head        → near-white flash
- *   1 = near tail   → neon acid green (#39ff14)
- *   2 = mid tail    → medium green
- *   3 = far tail    → dark ghost (barely visible)
+ * Every position renders a character — no empty columns.
+ *
+ * Matrix aesthetic: green dominates, gray only appears at the very tail.
+ *   dist=0        → bright white-green   rgb(200,255,200)
+ *   dist=1        → neon acid green      rgb(57,255,20)   ← Matrix signature
+ *   dist=2        → medium green        rgb(0,200,0)
+ *   dist=3        → dim green           rgb(0,140,0)
+ *   dist=max-1    → dark gray            rgb(38,38,38)
+ *   dist=max      → nearly black         rgb(20,20,20)
  */
 function rainCell(
   row: number,
@@ -326,16 +343,24 @@ function rainCell(
   // Character changes every ~350ms, unique per cell position
   const charIdx =
     Math.floor(now / 350 + row * 7 + col * 13) % RAIN_CHARS.length;
-  const ch = RAIN_CHARS[charIdx] ?? "ｱ";
+  const ch = RAIN_CHARS[charIdx] ?? " ";
 
   if (dist === 0) {
     return `${rgb(200, 255, 200)}${ch}${RESET}`; // bright head
   } else if (dist === 1) {
     return `${rgb(57, 255, 20)}${ch}${RESET}`; // neon acid green
   } else if (dist === 2) {
-    return `${rgb(0, 130, 0)}${ch}${RESET}`; // medium green
+    return `${rgb(0, 200, 0)}${ch}${RESET}`; // medium green
+  } else if (dist === 3) {
+    return `${rgb(0, 160, 0)}${ch}${RESET}`; // dim green
+  } else if (dist === 4) {
+    return `${rgb(0, 100, 0)}${ch}${RESET}`; // darker green (extended bright)
+  } else if (dist === totalRows - 1) {
+    return `${rgb(20, 20, 20)}${ch}${RESET}`; // nearly black
+  } else if (dist === totalRows - 2) {
+    return `${rgb(0, 0, 0)}${ch}${RESET}`; // pure black
   } else {
-    return `${rgb(0, 38, 0)}${ch}${RESET}`; // dark ghost tail
+    return `${rgb(8, 8, 8)}${ch}${RESET}`; // dark gray (transition)
   }
 }
 
@@ -355,7 +380,7 @@ function makeRainRow(row: number, now: number, totalRows: number): string {
 // ── Line renderers ──────────────────────────────────────────
 
 /**
- * Line 1: ◆ Model  ◇ path  ◈ branch ↑N ↓N !N +N ✘N ?N  ✦ duration  @agent  ◉ mode
+ * Line 1: ◇ path  ◈ branch ↑N ↓N !N +N ✘N ?N  ✦ duration  @agent  ◉ mode
  */
 function renderProjectLine(
   stdin: StdinData,
@@ -363,10 +388,6 @@ function renderProjectLine(
   sessionDuration: string,
 ): string {
   const parts: string[] = [];
-
-  // Model badge — ◆ Opus (icon + name, no brackets)
-  const modelName = getModelName(stdin);
-  parts.push(`${colorize(I_MODEL, CYAN)} ${colorize(modelName, CYAN)}`);
 
   // Project path — ◇ ~/D/Shannon
   const cwd = stdin.workspace?.project_dir ?? stdin.cwd ?? "";
@@ -428,9 +449,12 @@ function renderProjectLine(
 }
 
 /**
- * Line 2: ◎ ████░░ 65% (200k)   ↑ 36k   ↓ 300   ◎ 8.5k
+ * Line 2: ◆ Model | ◎ ████░░ 99% (1.0M) ▲ high usage | ↑ 494.2k  ↓ 390  ⊗ 494.2k
  */
 function renderContextLine(stdin: StdinData): string {
+  const modelName = getModelName(stdin);
+  const modelBadge = `${colorize(I_MODEL, CYAN)} ${colorize(modelName, CYAN)}`;
+
   const barWidth = getAdaptiveBarWidth();
   const percent = getContextPercent(stdin);
   const bar = contextBar(percent, barWidth);
@@ -446,12 +470,16 @@ function renderContextLine(stdin: StdinData): string {
           : "";
 
   const percentColor = contextPercentColor(percent);
-  // ◎ replaces plain "Context" text — icon as label
-  let line = `${colorize(I_CTX, C_SLATE)} ${bar} ${colorize(`${percent}%`, percentColor)}`;
-  if (windowLabel) line += ` ${dim(`(${windowLabel})`)}`;
+  // Context block: bar + percent + windowLabel + high usage warning
+  let ctxBlock = `${colorize(I_CTX, C_SLATE)} ${bar} ${colorize(`${percent}%`, percentColor)}`;
+  if (windowLabel) ctxBlock += ` ${dim(`(${windowLabel})`)}`;
+  if (percent >= 85) {
+    ctxBlock += ` ${colorize(`${I_WARN} high usage`, rgb(255, 0, 144))}`;
+  }
 
-  // Token breakdown — icon-first, each with distinct neon color
+  // Token breakdown block
   const usage = stdin.context_window?.current_usage;
+  let tokenBlock = "";
   if (usage) {
     const inTok = fmtTokens(usage.input_tokens ?? 0);
     const outTok = fmtTokens(usage.output_tokens ?? 0);
@@ -460,27 +488,20 @@ function renderContextLine(stdin: StdinData): string {
     const cacheTotal = cacheIn + cacheNew;
 
     const tokenParts: string[] = [];
-    // ↑ input tokens — sky icon + white value
     tokenParts.push(`${colorize(I_IN, C_SKY)} ${colorize(inTok, WHITE)}`);
-    // ↓ output tokens — lilac icon + white value
     if (Number(usage.output_tokens ?? 0) > 0) {
       tokenParts.push(`${colorize(I_OUT, C_LILAC)} ${colorize(outTok, WHITE)}`);
     }
-    // ◎ cache tokens — aqua icon + aqua value
     if (cacheTotal > 0) {
       tokenParts.push(
         `${colorize(I_CACHE, C_AQUA)} ${colorize(fmtTokens(cacheTotal), C_AQUA)}`,
       );
     }
-    line += `  ${tokenParts.join("  ")}`;
+    tokenBlock = `  ${tokenParts.join("  ")}`;
   }
 
-  // High usage warning — ▲ with neon hot pink
-  if (percent >= 85) {
-    line += ` ${colorize(`${I_WARN} high usage`, rgb(255, 0, 144))}`;
-  }
-
-  return line;
+  // Final order: Model | Context | Tokens
+  return `${modelBadge}  ${SEP}  ${ctxBlock}  ${SEP}${tokenBlock}`;
 }
 
 /**
@@ -615,17 +636,15 @@ function makeSeparator(state: SepState, width: number): string {
     );
   }
 
-  // idle — steady electric purple (original default)
-  return colorize("─".repeat(width), C_SLATE);
+  // idle — steady gray
+  return colorize("─".repeat(width), C_GRAY);
 }
 
 /**
- * Activity line: running tools + completed tool counts
+ * Running tools only (above separator)
  */
-function renderToolsLine(transcript: TranscriptData): string | null {
+function renderRunningToolsLine(transcript: TranscriptData): string[] | null {
   const parts: string[] = [];
-
-  // Running tools (up to 3, with duration)
   const running = transcript.tools.filter((t) => t.status === "running");
   for (const t of running.slice(-3)) {
     const target = t.target
@@ -639,9 +658,16 @@ function renderToolsLine(transcript: TranscriptData): string | null {
       `${colorize(I_RUN, C_HOT)} ${colorize(t.name, C_SKY)}${target} ${colorize(`(${elapsed})`, C_SLATE)}`,
     );
   }
+  if (parts.length === 0) return null;
+  return parts;
+}
 
-  // Completed tool counts — curated fixed list (in priority order)
-  // Task is intentionally excluded: sub-agent dispatches inflate the count
+/**
+ * Completed tool counts only (below separator, horizontal single line)
+ */
+function renderToolCountsLine(transcript: TranscriptData): string | null {
+  const parts: string[] = [];
+  // Curated fixed list (in priority order, matches UI CORE_TOOLS)
   const CURATED_TOOLS = [
     "Read",
     "Edit",
@@ -649,6 +675,7 @@ function renderToolsLine(transcript: TranscriptData): string | null {
     "Bash",
     "Glob",
     "Grep",
+    "Agent",
   ] as const;
   const completed = transcript.tools.filter((t) => t.status === "completed");
   const completedCounts = new Map<string, number>();
@@ -663,18 +690,16 @@ function renderToolsLine(transcript: TranscriptData): string | null {
       );
     }
   }
-
   if (parts.length === 0) return null;
-  return parts.join(` ${SEP} `);
+  return parts.join(`  ${SEP}  `); // horizontal
 }
 
 /**
- * Activity line: running agents + completed agents
+ * All agents — vertical list (running first, then completed)
  */
-function renderAgentsLine(transcript: TranscriptData): string | null {
+function renderAgentsLine(transcript: TranscriptData): string[] | null {
   const parts: string[] = [];
 
-  // Running agents (up to 3)
   const runningAgents = transcript.agents.filter((a) => a.status === "running");
   for (const a of runningAgents.slice(-3)) {
     const model = a.model ? ` ${colorize(`[${a.model}]`, C_SLATE)}` : "";
@@ -687,7 +712,6 @@ function renderAgentsLine(transcript: TranscriptData): string | null {
     );
   }
 
-  // Completed agents (latest 3)
   const completedAgents = transcript.agents.filter(
     (a) => a.status === "completed",
   );
@@ -699,31 +723,44 @@ function renderAgentsLine(transcript: TranscriptData): string | null {
   }
 
   if (parts.length === 0) return null;
-  return parts.join(` ${SEP} `);
+  return parts;
 }
 
 /**
- * Activity line: todos
+ * Todos — vertical list (each todo on its own line)
  */
-function renderTodosLine(transcript: TranscriptData): string | null {
+function renderTodosLine(transcript: TranscriptData): string[] | null {
   if (transcript.todos.length === 0) return null;
 
   const done = transcript.todos.filter((t) => t.status === "completed").length;
   const total = transcript.todos.length;
-  const current = transcript.todos.find((t) => t.status === "in_progress");
+  const parts: string[] = [];
 
-  if (!current) {
-    if (done === total && total > 0) {
-      return `${colorize(I_DONE, C_MINT)} ${colorize("All done", C_MINT)} ${colorize(`(${done}/${total})`, C_SLATE)}`;
-    }
-    return null;
+  for (const t of transcript.todos) {
+    const statusIcon =
+      t.status === "completed"
+        ? I_DONE
+        : t.status === "in_progress"
+          ? I_RUN
+          : I_TODO;
+    const statusColor =
+      t.status === "completed"
+        ? C_MINT
+        : t.status === "in_progress"
+          ? C_HOT
+          : C_SLATE;
+    const content =
+      t.content.length > 50 ? `${t.content.slice(0, 50)}...` : t.content;
+    const count =
+      t.status === "completed"
+        ? ""
+        : ` ${colorize(`(${done}/${total})`, C_SLATE)}`;
+    parts.push(
+      `${colorize(statusIcon, statusColor)} ${colorize(content, WHITE)}${count}`,
+    );
   }
 
-  const content =
-    current.content.length > 50
-      ? `${current.content.slice(0, 50)}...`
-      : current.content;
-  return `${colorize(I_TODO, C_HOT)} ${colorize(content, WHITE)} ${colorize(`(${done}/${total})`, C_SLATE)}`;
+  return parts;
 }
 
 // ── Main render ─────────────────────────────────────────────
@@ -747,34 +784,42 @@ export function render(
   const configLine = renderConfigLine(configCounts);
   if (configLine) lines.push(configLine);
 
-  // Collect activity lines
-  const toolsLine = renderToolsLine(transcript);
-  const agentsLine = renderAgentsLine(transcript);
+  // ── Activity section ────────────────────────────────────────
+  const runningToolsLine = renderRunningToolsLine(transcript);
+  const toolCountsLine = renderToolCountsLine(transcript);
   const todosLine = renderTodosLine(transcript);
-  const hasActivity = toolsLine || agentsLine || todosLine;
+  const agentsLine = renderAgentsLine(transcript);
 
-  // Separator before activity (only if there are static lines before)
-  if (hasActivity && lines.length > 0) {
-    const sepState = detectSepState(stdin, transcript);
+  const sepState = detectSepState(stdin, transcript);
+
+  // Separator 1: static lines → tool counts + running tools
+  if ((toolCountsLine || runningToolsLine) && lines.length > 0) {
     lines.push(makeSeparator(sepState, PAD_COL));
   }
+  if (toolCountsLine) lines.push(toolCountsLine); // horizontal
+  if (runningToolsLine) lines.push(...runningToolsLine); // vertical
 
-  // Activity lines
-  if (toolsLine) lines.push(toolsLine);
-  if (agentsLine) lines.push(agentsLine);
-  if (todosLine) lines.push(todosLine);
+  // Separator 2: tool counts/running tools → todos
+  if (todosLine) {
+    lines.push(makeSeparator(sepState, PAD_COL));
+    lines.push(...todosLine); // vertical list
+  }
+
+  // Separator 3: todos → agents
+  if (agentsLine) {
+    lines.push(makeSeparator(sepState, PAD_COL));
+    lines.push(...agentsLine); // vertical list
+  }
 
   // ── Matrix rain decoration (right-aligned, all rows) ──
   const now = Date.now();
   const totalRows = lines.length;
-  // Rain visible width: RAIN_COLS chars + (RAIN_COLS-1) spaces between + 2 leading spaces
-  // e.g. RAIN_COLS=6 → "ｱ ｲ ｳ ｴ ｵ ｶ" = 11 visible + 2 padding = 13 total
-  // Rain is fixed at PAD_COL; no dynamic terminal width detection needed
-  // (stdout is always piped by Claude Code, making detection unreliable)
+  const termWidth = getTerminalWidth();
+  const padCols = termWidth ?? PAD_COL;
 
   for (let row = 0; row < lines.length; row++) {
     const line = lines[row] ?? "";
-    const padded = padVisible(line, PAD_COL);
+    const padded = padVisible(line, padCols);
     const rain = makeRainRow(row, now, totalRows);
     const decorated = `${RESET}${padded.replace(/ /g, "\u00A0")}  ${rain}`;
     console.log(decorated);
