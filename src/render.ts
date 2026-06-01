@@ -11,15 +11,12 @@ import type {
 
 const RESET = "\x1b[0m";
 const DIM = "\x1b[2m";
-const _BOLD = "\x1b[1m";
 
 // Standard 16-color — semantic states (git arrows)
 const RED = "\x1b[31m";
 const GREEN = "\x1b[32m";
 const CYAN = "\x1b[36m";
-const _GRAY = "\x1b[90m";
 const WHITE = "\x1b[37m";
-const _BRIGHT_BLUE = "\x1b[94m";
 
 // 256-color — cyberpunk neon palette
 //   C_MINT:   matrix green  (#87ff00)  completed / good states
