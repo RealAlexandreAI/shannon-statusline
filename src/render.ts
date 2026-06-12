@@ -1,5 +1,6 @@
 import { shortenDisplayPath } from "./path.js";
 import { getContextPercent, getModelName } from "./stdin.js";
+import { sparkline, gradientText, boxTop, boxBottom, boxRow, badge, codeChangeBar } from "./effects.js";
 import type {
   ConfigCounts,
   GitStatus,
@@ -204,12 +205,10 @@ function renderProjectLine(
 
   const cwd = stdin.workspace?.project_dir ?? stdin.cwd ?? "";
   if (cwd) {
-    parts.push(
-      `${colorize(I_PATH, M_ORANGE)} ${colorize(
-        shortenDisplayPath(cwd, { homeDir: process.env.HOME ?? "", maxLength: 30 }),
-        M_ORANGE,
-      )}`,
-    );
+    const displayPath = shortenDisplayPath(cwd, { homeDir: process.env.HOME ?? "", maxLength: 30 });
+    // Gradient text: orange → yellow for the path
+    const pathText = gradientText(displayPath, [[253, 151, 31], [230, 219, 116]]);
+    parts.push(`${colorize(I_PATH, M_ORANGE)} ${pathText}`);
   }
 
   if (git) {
@@ -234,12 +233,22 @@ function renderProjectLine(
 
   const agentName = stdin.agent?.name;
   if (agentName) {
-    parts.push(colorize(`@${agentName}`, M_PURPLE));
+    parts.push(badge(`@${agentName}`, M_FG, [80, 50, 120]));
   }
 
   const permMode = stdin.permission_mode;
   if (permMode) {
-    parts.push(`${colorize(I_LOCK, M_COMMENT)} ${colorize(permMode, M_COMMENT)}`);
+    parts.push(badge(permMode, M_FG, [50, 50, 60]));
+  }
+
+  // Code changes
+  const cost = stdin.cost;
+  if (cost) {
+    const added = cost.total_lines_added ?? 0;
+    const removed = cost.total_lines_removed ?? 0;
+    if (added + removed > 0) {
+      parts.push(`+${colorize(`${added}`, M_GREEN)} -${colorize(`${removed}`, M_PINK)}`);
+    }
   }
 
   return parts.join(` ${SEP} `);
@@ -270,7 +279,26 @@ function renderContextLine(stdin: StdinData): string {
     ctxBlock += ` ${colorize(`${I_WARN} high usage`, M_PINK)}`;
   }
 
+  // Sparkline: visualize token composition as a mini bar
   const usage = stdin.context_window?.current_usage;
+  let sparkBlock = "";
+  if (usage) {
+    const inTok = usage.input_tokens ?? 0;
+    const outTok = usage.output_tokens ?? 0;
+    const cacheIn = usage.cache_read_input_tokens ?? 0;
+    const cacheNew = usage.cache_creation_input_tokens ?? 0;
+    const cacheTotal = cacheIn + cacheNew;
+    const total = inTok + outTok + cacheTotal || 1;
+
+    // Build a 6-char sparkline from token ratios
+    const ratios = [
+      (inTok / total) * 8,
+      (outTok / total) * 8,
+      (cacheTotal / total) * 8,
+    ];
+    sparkBlock = ` ${sparkline(ratios, 6)}`;
+  }
+
   let tokenBlock = "";
   if (usage) {
     const inTok = fmtTokens(usage.input_tokens ?? 0);
@@ -290,7 +318,7 @@ function renderContextLine(stdin: StdinData): string {
     tokenBlock = `  ${tokenParts.join("  ")}`;
   }
 
-  return `${modelBadge}  ${SEP}  ${ctxBlock}  ${SEP}${tokenBlock}`;
+  return `${modelBadge}  ${SEP}  ${ctxBlock}${sparkBlock}  ${SEP}${tokenBlock}`;
 }
 
 function renderConfigLine(configCounts: ConfigCounts): string | null {
