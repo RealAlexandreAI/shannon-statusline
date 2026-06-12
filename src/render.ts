@@ -12,23 +12,33 @@ import type {
 const RESET = "\x1b[0m";
 const DIM = "\x1b[2m";
 
-const RED = "\x1b[31m";
-const GREEN = "\x1b[32m";
-const CYAN = "\x1b[36m";
-const WHITE = "\x1b[37m";
-
-const C_MINT = "\x1b[38;5;118m";
-const C_SKY = "\x1b[38;5;51m";
-const C_LILAC = "\x1b[38;5;213m";
-const C_SLATE = "\x1b[38;5;99m";
-const C_HOT = "\x1b[38;5;208m";
-const C_GOLD = "\x1b[38;5;220m";
-const C_AQUA = "\x1b[38;5;44m";
-const C_GRAY = "\x1b[38;5;240m";
-
 function rgb(r: number, g: number, b: number): string {
   return `\x1b[38;2;${r};${g};${b}m`;
 }
+
+function hexToAnsi(hex: string): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return rgb((n >> 16) & 255, (n >> 8) & 255, n & 255);
+}
+
+// ── Monokai Pro palette ────────────────────────────────────
+
+const MONOKAI_FG = "#F8F8F2";
+const MONOKAI_COMMENT = "#75715E";
+const MONOKAI_PINK = "#F92672";
+const MONOKAI_GREEN = "#A6E22E";
+const MONOKAI_ORANGE = "#FD971F";
+const MONOKAI_CYAN = "#66D9EF";
+const MONOKAI_PURPLE = "#AE81FF";
+
+// ANSI escape versions for use with colorize()
+const M_FG = hexToAnsi(MONOKAI_FG);
+const M_COMMENT = hexToAnsi(MONOKAI_COMMENT);
+const M_PINK = hexToAnsi(MONOKAI_PINK);
+const M_GREEN = hexToAnsi(MONOKAI_GREEN);
+const M_ORANGE = hexToAnsi(MONOKAI_ORANGE);
+const M_CYAN = hexToAnsi(MONOKAI_CYAN);
+const M_PURPLE = hexToAnsi(MONOKAI_PURPLE);
 
 // ── Rainbow / Marquee helpers ────────────────────────────────
 
@@ -62,7 +72,7 @@ function dim(text: string): string {
   return `${DIM}${text}${RESET}`;
 }
 
-const SEP = colorize("│", C_GRAY);
+const SEP = M_COMMENT;
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -191,41 +201,41 @@ function renderProjectLine(
   const cwd = stdin.workspace?.project_dir ?? stdin.cwd ?? "";
   if (cwd) {
     parts.push(
-      `${colorize(I_PATH, C_GOLD)} ${colorize(
+      `${colorize(I_PATH, M_ORANGE)} ${colorize(
         shortenDisplayPath(cwd, { homeDir: process.env.HOME ?? "", maxLength: 30 }),
-        C_GOLD,
+        M_ORANGE,
       )}`,
     );
   }
 
   if (git) {
     const dirty = git.isDirty ? "*" : "";
-    let gitInfo = `${colorize(I_BRANCH, C_SKY)} ${colorize(`${git.branch}${dirty}`, C_SKY)}`;
+    let gitInfo = `${colorize(I_BRANCH, M_CYAN)} ${colorize(`${git.branch}${dirty}`, M_CYAN)}`;
     const gitDetails: string[] = [];
-    if (git.ahead > 0) gitDetails.push(colorize(`↑${git.ahead}`, GREEN));
-    if (git.behind > 0) gitDetails.push(colorize(`↓${git.behind}`, RED));
+    if (git.ahead > 0) gitDetails.push(colorize(`↑${git.ahead}`, M_GREEN));
+    if (git.behind > 0) gitDetails.push(colorize(`↓${git.behind}`, M_PINK));
     if (git.fileStats) {
-      if (git.fileStats.modified > 0) gitDetails.push(colorize(`!${git.fileStats.modified}`, C_HOT));
-      if (git.fileStats.added > 0) gitDetails.push(colorize(`+${git.fileStats.added}`, C_MINT));
-      if (git.fileStats.deleted > 0) gitDetails.push(colorize(`✘${git.fileStats.deleted}`, RED));
-      if (git.fileStats.untracked > 0) gitDetails.push(colorize(`?${git.fileStats.untracked}`, C_SLATE));
+      if (git.fileStats.modified > 0) gitDetails.push(colorize(`!${git.fileStats.modified}`, M_PINK));
+      if (git.fileStats.added > 0) gitDetails.push(colorize(`+${git.fileStats.added}`, M_GREEN));
+      if (git.fileStats.deleted > 0) gitDetails.push(colorize(`✘${git.fileStats.deleted}`, M_PINK));
+      if (git.fileStats.untracked > 0) gitDetails.push(colorize(`?${git.fileStats.untracked}`, M_COMMENT));
     }
     if (gitDetails.length > 0) gitInfo += ` ${gitDetails.join(" ")}`;
     parts.push(gitInfo);
   }
 
   if (sessionDuration) {
-    parts.push(`${colorize(I_CLOCK, C_SLATE)} ${colorize(sessionDuration, C_SLATE)}`);
+    parts.push(`${colorize(I_CLOCK, M_COMMENT)} ${colorize(sessionDuration, M_COMMENT)}`);
   }
 
   const agentName = stdin.agent?.name;
   if (agentName) {
-    parts.push(colorize(`@${agentName}`, C_LILAC));
+    parts.push(colorize(`@${agentName}`, M_PURPLE));
   }
 
   const permMode = stdin.permission_mode;
   if (permMode) {
-    parts.push(`${colorize(I_LOCK, C_SLATE)} ${colorize(permMode, C_SLATE)}`);
+    parts.push(`${colorize(I_LOCK, M_COMMENT)} ${colorize(permMode, M_COMMENT)}`);
   }
 
   return parts.join(` ${SEP} `);
@@ -233,7 +243,7 @@ function renderProjectLine(
 
 function renderContextLine(stdin: StdinData): string {
   const modelName = getModelName(stdin);
-  const modelBadge = `${colorize(I_MODEL, CYAN)} ${colorize(modelName, CYAN)}`;
+  const modelBadge = `${M_CYAN} ${colorize(modelName, M_CYAN)}`;
 
   const barWidth = 10;
   const percent = getContextPercent(stdin);
@@ -250,10 +260,10 @@ function renderContextLine(stdin: StdinData): string {
           : "";
 
   const percentColor = contextPercentColor(percent);
-  let ctxBlock = `${colorize(I_CTX, C_SLATE)} ${bar} ${colorize(`${percent}%`, percentColor)}`;
+  let ctxBlock = `${M_COMMENT} ${bar} ${colorize(`${percent}%`, percentColor)}`;
   if (windowLabel) ctxBlock += ` ${dim(`(${windowLabel})`)}`;
   if (percent >= 85) {
-    ctxBlock += ` ${colorize(`${I_WARN} high usage`, rgb(255, 0, 144))}`;
+    ctxBlock += ` ${colorize(`${I_WARN} high usage`, M_PINK)}`;
   }
 
   const usage = stdin.context_window?.current_usage;
@@ -266,12 +276,12 @@ function renderContextLine(stdin: StdinData): string {
     const cacheTotal = cacheIn + cacheNew;
 
     const tokenParts: string[] = [];
-    tokenParts.push(`${colorize(I_IN, C_SKY)} ${colorize(inTok, WHITE)}`);
+    tokenParts.push(`${M_CYAN} ${colorize(inTok, M_FG)}`);
     if (Number(usage.output_tokens ?? 0) > 0) {
-      tokenParts.push(`${colorize(I_OUT, C_LILAC)} ${colorize(outTok, WHITE)}`);
+      tokenParts.push(`${M_PURPLE} ${colorize(outTok, M_FG)}`);
     }
     if (cacheTotal > 0) {
-      tokenParts.push(`${colorize(I_CACHE, C_AQUA)} ${colorize(fmtTokens(cacheTotal), C_AQUA)}`);
+      tokenParts.push(`${M_CYAN} ${colorize(fmtTokens(cacheTotal), M_CYAN)}`);
     }
     tokenBlock = `  ${tokenParts.join("  ")}`;
   }
@@ -282,13 +292,13 @@ function renderContextLine(stdin: StdinData): string {
 function renderConfigLine(configCounts: ConfigCounts): string | null {
   const parts: string[] = [];
   if (configCounts.claudeMd > 0)
-    parts.push(`${colorize(I_CLAUDE, C_GOLD)} ${colorize(`×${configCounts.claudeMd}`, C_GOLD)} ${dim("CLAUDE.md")}`);
+    parts.push(`${M_ORANGE} ${colorize(`×${configCounts.claudeMd}`, M_ORANGE)} ${dim("CLAUDE.md")}`);
   if (configCounts.rules > 0)
-    parts.push(`${colorize(I_RULES, C_SLATE)} ${colorize(`×${configCounts.rules}`, C_SLATE)} ${dim("rules")}`);
+    parts.push(`${M_COMMENT} ${colorize(`×${configCounts.rules}`, M_COMMENT)} ${dim("rules")}`);
   if (configCounts.mcp > 0)
-    parts.push(`${colorize(I_MCP, C_AQUA)} ${colorize(`×${configCounts.mcp}`, C_AQUA)} ${dim("MCPs")}`);
+    parts.push(`${M_CYAN} ${colorize(`×${configCounts.mcp}`, M_CYAN)} ${dim("MCPs")}`);
   if (configCounts.hooks > 0)
-    parts.push(`${colorize(I_HOOK, C_HOT)} ${colorize(`×${configCounts.hooks}`, C_HOT)} ${dim("hooks")}`);
+    parts.push(`${M_PINK} ${colorize(`×${configCounts.hooks}`, M_PINK)} ${dim("hooks")}`);
   if (parts.length === 0) return null;
   return parts.join(` ${SEP} `);
 }
@@ -342,7 +352,7 @@ function makeSeparator(state: SepState, width: number): string {
     );
   }
 
-  return colorize("─".repeat(width), C_GRAY);
+  return M_COMMENT + "─".repeat(width) + RESET;
 }
 
 // ── Activity renderers ──────────────────────────────────────
@@ -356,7 +366,7 @@ function renderRunningToolsLine(transcript: TranscriptData): string[] | null {
       : "";
     const elapsed = fmtDurationShort(Date.now() - t.startTime.getTime());
     parts.push(
-      `${colorize(I_RUN, C_HOT)} ${colorize(t.name, C_SKY)}${target} ${colorize(`(${elapsed})`, C_SLATE)}`,
+      `${M_PINK} ${colorize(t.name, M_CYAN)}${target} ${colorize(`(${elapsed})`, M_COMMENT)}`,
     );
   }
   if (parts.length === 0) return null;
@@ -375,7 +385,7 @@ function renderToolCountsLine(transcript: TranscriptData): string | null {
     const count = completedCounts.get(name) ?? 0;
     if (count > 0) {
       parts.push(
-        `${colorize(I_DONE, C_MINT)} ${colorize(name, WHITE)}${count > 1 ? ` ${colorize(`×${count}`, C_SLATE)}` : ""}`,
+        `${M_GREEN} ${colorize(name, M_FG)}${count > 1 ? ` ${colorize(`×${count}`, M_COMMENT)}` : ""}`,
       );
     }
   }
@@ -388,20 +398,20 @@ function renderAgentsLine(transcript: TranscriptData): string[] | null {
 
   const runningAgents = transcript.agents.filter((a) => a.status === "running");
   for (const a of runningAgents.slice(-3)) {
-    const model = a.model ? ` ${colorize(`[${a.model}]`, C_SLATE)}` : "";
+    const model = a.model ? ` ${colorize(`[${a.model}]`, M_COMMENT)}` : "";
     const desc = a.description
       ? `: ${a.description.slice(0, 40)}${a.description.length > 40 ? "..." : ""}`
       : "";
     const elapsed = fmtDurationShort(Date.now() - a.startTime.getTime());
     parts.push(
-      `${colorize(I_RUN, C_HOT)} ${colorize(a.type, C_LILAC)}${model}${desc} ${colorize(`(${elapsed})`, C_SLATE)}`,
+      `${M_PINK} ${colorize(a.type, M_PURPLE)}${model}${desc} ${colorize(`(${elapsed})`, M_COMMENT)}`,
     );
   }
 
   const completedAgents = transcript.agents.filter((a) => a.status === "completed");
   for (const a of completedAgents.slice(-3)) {
     const desc = a.description ? `: ${a.description.slice(0, 40)}` : "";
-    parts.push(`${colorize(I_DONE, C_MINT)} ${colorize(a.type, C_LILAC)}${desc}`);
+    parts.push(`${M_GREEN} ${colorize(a.type, M_PURPLE)}${desc}`);
   }
 
   if (parts.length === 0) return null;
@@ -419,12 +429,12 @@ function renderTodosLine(transcript: TranscriptData): string[] | null {
     const statusIcon =
       t.status === "completed" ? I_DONE : t.status === "in_progress" ? I_RUN : I_TODO;
     const statusColor =
-      t.status === "completed" ? C_MINT : t.status === "in_progress" ? C_HOT : C_SLATE;
+      t.status === "completed" ? M_GREEN : t.status === "in_progress" ? M_PINK : M_COMMENT;
     const content = t.content.length > 50 ? `${t.content.slice(0, 50)}...` : t.content;
     const count =
-      t.status === "completed" ? "" : ` ${colorize(`(${done}/${total})`, C_SLATE)}`;
+      t.status === "completed" ? "" : ` ${colorize(`(${done}/${total})`, M_COMMENT)}`;
     parts.push(
-      `${colorize(statusIcon, statusColor)} ${colorize(content, WHITE)}${count}`,
+      `${colorize(statusIcon, statusColor)} ${colorize(content, M_FG)}${count}`,
     );
   }
 
