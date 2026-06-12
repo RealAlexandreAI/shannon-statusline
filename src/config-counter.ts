@@ -34,6 +34,7 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
     ? expandTilde(process.env.CLAUDE_CONFIG_DIR.trim(), home)
     : null;
   const settingsPath = path.join(home, ".claude", "settings.json");
+  const legacySettingsPath = path.join(home, ".claude.json");
   const configuredSettingsPath = configuredDir
     ? path.join(configuredDir, "settings.json")
     : null;
@@ -42,6 +43,7 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
 
   for (const sp of [
     settingsPath,
+    legacySettingsPath,
     configuredSettingsPath,
     projectSettingsPath,
   ]) {
@@ -83,12 +85,12 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
     // Ignore
   }
 
-  // Count skills
+  // Count skills (includes symlinks)
   const skillsDir = path.join(home, ".claude", "skills");
   if (dirExists(skillsDir)) {
     try {
       const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
-      result.skills = entries.filter((e) => e.isDirectory()).length;
+      result.skills = entries.filter((e) => e.isDirectory() || e.isSymbolicLink()).length;
     } catch {
       // Ignore
     }
