@@ -17,29 +17,15 @@ function rgb(r: number, g: number, b: number): string {
   return `\x1b[38;2;${r};${g};${b}m`;
 }
 
-function hexToAnsi(hex: string): string {
-  const n = Number.parseInt(hex.slice(1), 16);
-  return rgb((n >> 16) & 255, (n >> 8) & 255, n & 255);
-}
+// ── Monokai Pro palette (256-color for Claude Code buffer compat) ──
 
-// ── Monokai Pro palette ────────────────────────────────────
-
-const MONOKAI_FG = "#F8F8F2";
-const MONOKAI_COMMENT = "#75715E";
-const MONOKAI_PINK = "#F92672";
-const MONOKAI_GREEN = "#A6E22E";
-const MONOKAI_ORANGE = "#FD971F";
-const MONOKAI_CYAN = "#66D9EF";
-const MONOKAI_PURPLE = "#AE81FF";
-
-// ANSI escape versions for use with colorize()
-const M_FG = hexToAnsi(MONOKAI_FG);
-const M_COMMENT = hexToAnsi(MONOKAI_COMMENT);
-const M_PINK = hexToAnsi(MONOKAI_PINK);
-const M_GREEN = hexToAnsi(MONOKAI_GREEN);
-const M_ORANGE = hexToAnsi(MONOKAI_ORANGE);
-const M_CYAN = hexToAnsi(MONOKAI_CYAN);
-const M_PURPLE = hexToAnsi(MONOKAI_PURPLE);
+const M_FG = "\x1b[38;5;252m";
+const M_COMMENT = "\x1b[38;5;243m";
+const M_PINK = "\x1b[38;5;198m";
+const M_GREEN = "\x1b[38;5;154m";
+const M_ORANGE = "\x1b[38;5;208m";
+const M_CYAN = "\x1b[38;5;123m";
+const M_PURPLE = "\x1b[38;5;141m";
 
 // ── Rainbow / Marquee helpers ────────────────────────────────
 
@@ -205,10 +191,12 @@ function renderProjectLine(
 
   const cwd = stdin.workspace?.project_dir ?? stdin.cwd ?? "";
   if (cwd) {
-    const displayPath = shortenDisplayPath(cwd, { homeDir: process.env.HOME ?? "", maxLength: 30 });
-    // Gradient text: orange → yellow for the path
-    const pathText = gradientText(displayPath, [[253, 151, 31], [230, 219, 116]]);
-    parts.push(`${colorize(I_PATH, M_ORANGE)} ${pathText}`);
+    parts.push(
+      `${colorize(I_PATH, M_ORANGE)} ${colorize(
+        shortenDisplayPath(cwd, { homeDir: process.env.HOME ?? "", maxLength: 30 }),
+        M_ORANGE,
+      )}`,
+    );
   }
 
   if (git) {
@@ -233,12 +221,12 @@ function renderProjectLine(
 
   const agentName = stdin.agent?.name;
   if (agentName) {
-    parts.push(badge(`@${agentName}`, M_FG, [80, 50, 120]));
+    parts.push(colorize(`@${agentName}`, M_PURPLE));
   }
 
   const permMode = stdin.permission_mode;
   if (permMode) {
-    parts.push(badge(permMode, M_FG, [50, 50, 60]));
+    parts.push(`${colorize(I_LOCK, M_COMMENT)} ${colorize(permMode, M_COMMENT)}`);
   }
 
   // Code changes
@@ -256,7 +244,7 @@ function renderProjectLine(
 
 function renderContextLine(stdin: StdinData): string {
   const modelName = getModelName(stdin);
-  const modelBadge = `${M_CYAN} ${colorize(modelName, M_CYAN)}`;
+  const modelBadge = `${colorize(I_MODEL, M_CYAN)} ${colorize(modelName, M_CYAN)}`;
 
   const barWidth = 10;
   const percent = getContextPercent(stdin);
@@ -273,7 +261,7 @@ function renderContextLine(stdin: StdinData): string {
           : "";
 
   const percentColor = contextPercentColor(percent);
-  let ctxBlock = `${M_COMMENT} ${bar} ${colorize(`${percent}%`, percentColor)}`;
+  let ctxBlock = `${colorize(I_CTX, M_COMMENT)} ${bar} ${colorize(`${percent}%`, percentColor)}`;
   if (windowLabel) ctxBlock += ` ${dim(`(${windowLabel})`)}`;
   if (percent >= 85) {
     ctxBlock += ` ${colorize(`${I_WARN} high usage`, M_PINK)}`;
@@ -308,12 +296,12 @@ function renderContextLine(stdin: StdinData): string {
     const cacheTotal = cacheIn + cacheNew;
 
     const tokenParts: string[] = [];
-    tokenParts.push(`${M_CYAN} ${colorize(inTok, M_FG)}`);
+    tokenParts.push(`${colorize(I_IN, M_CYAN)} ${colorize(inTok, M_FG)}`);
     if (Number(usage.output_tokens ?? 0) > 0) {
-      tokenParts.push(`${M_PURPLE} ${colorize(outTok, M_FG)}`);
+      tokenParts.push(`${colorize(I_OUT, M_PURPLE)} ${colorize(outTok, M_FG)}`);
     }
     if (cacheTotal > 0) {
-      tokenParts.push(`${M_CYAN} ${colorize(fmtTokens(cacheTotal), M_CYAN)}`);
+      tokenParts.push(`${colorize(I_CACHE, M_CYAN)} ${colorize(fmtTokens(cacheTotal), M_CYAN)}`);
     }
     tokenBlock = `  ${tokenParts.join("  ")}`;
   }
@@ -324,13 +312,13 @@ function renderContextLine(stdin: StdinData): string {
 function renderConfigLine(configCounts: ConfigCounts): string | null {
   const parts: string[] = [];
   if (configCounts.claudeMd > 0)
-    parts.push(`${M_ORANGE} ${colorize(`×${configCounts.claudeMd}`, M_ORANGE)} ${dim("CLAUDE.md")}`);
+    parts.push(`${colorize(I_CLAUDE, M_ORANGE)} ${colorize(`×${configCounts.claudeMd}`, M_ORANGE)} ${dim("CLAUDE.md")}`);
   if (configCounts.rules > 0)
-    parts.push(`${M_COMMENT} ${colorize(`×${configCounts.rules}`, M_COMMENT)} ${dim("rules")}`);
+    parts.push(`${colorize(I_RULES, M_COMMENT)} ${colorize(`×${configCounts.rules}`, M_COMMENT)} ${dim("rules")}`);
   if (configCounts.mcp > 0)
-    parts.push(`${M_CYAN} ${colorize(`×${configCounts.mcp}`, M_CYAN)} ${dim("MCPs")}`);
+    parts.push(`${colorize(I_MCP, M_CYAN)} ${colorize(`×${configCounts.mcp}`, M_CYAN)} ${dim("MCPs")}`);
   if (configCounts.hooks > 0)
-    parts.push(`${M_PINK} ${colorize(`×${configCounts.hooks}`, M_PINK)} ${dim("hooks")}`);
+    parts.push(`${colorize(I_HOOK, M_PINK)} ${colorize(`×${configCounts.hooks}`, M_PINK)} ${dim("hooks")}`);
   if (parts.length === 0) return null;
   return parts.join(` ${SEP} `);
 }
