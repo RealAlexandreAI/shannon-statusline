@@ -13,7 +13,7 @@ export async function main(): Promise<void> {
   try {
     const stdin = await readStdin();
     if (!stdin) {
-      console.log("[shannon-statusline] Initializing...");
+      // boot — no input yet (Claude Code sends empty Data on first tick)
       return;
     }
 
