@@ -18,6 +18,15 @@ function rgb(r: number, g: number, b: number): string {
 }
 
 // ── Monokai Pro palette (256-color for Claude Code buffer compat) ──
+// Semantic mapping:
+//   orange  = primary info (model, path, CLAUDE.md)
+//   cyan    = cool secondary (branch, cache, MCPs)
+//   purple  = accent (agent, out-tokens)
+//   green   = positive (completed, added, ahead)
+//   yellow  = warm accent (hooks, running)
+//   blue    = neutral (permissions)
+//   pink    = DANGER ONLY (warnings, deletions, behind)
+//   comment = dim (separators, duration, rules, untracked)
 
 const M_FG = "\x1b[38;5;252m";
 const M_COMMENT = "\x1b[38;5;243m";
@@ -26,6 +35,8 @@ const M_GREEN = "\x1b[38;5;154m";
 const M_ORANGE = "\x1b[38;5;208m";
 const M_CYAN = "\x1b[38;5;123m";
 const M_PURPLE = "\x1b[38;5;141m";
+const M_YELLOW = "\x1b[38;5;221m";
+const M_BLUE = "\x1b[38;5;111m";
 
 // ── Rainbow / Marquee helpers ────────────────────────────────
 
@@ -226,7 +237,7 @@ function renderProjectLine(
 
   const permMode = stdin.permission_mode;
   if (permMode) {
-    parts.push(`${colorize(I_LOCK, M_COMMENT)} ${colorize(permMode, M_COMMENT)}`);
+    parts.push(`${colorize(I_LOCK, M_BLUE)} ${colorize(permMode, M_BLUE)}`);
   }
 
   // Code changes
@@ -261,7 +272,7 @@ function renderContextLine(stdin: StdinData): string {
           : "";
 
   const percentColor = contextPercentColor(percent);
-  let ctxBlock = `${colorize(I_CTX, M_COMMENT)} ${bar} ${colorize(`${percent}%`, percentColor)}`;
+  let ctxBlock = `${colorize(I_CTX, M_CYAN)} ${bar} ${colorize(`${percent}%`, percentColor)}`;
   if (windowLabel) ctxBlock += ` ${dim(`(${windowLabel})`)}`;
   if (percent >= 85) {
     ctxBlock += ` ${colorize(`${I_WARN} high usage`, M_PINK)}`;
@@ -318,7 +329,7 @@ function renderConfigLine(configCounts: ConfigCounts): string | null {
   if (configCounts.mcp > 0)
     parts.push(`${colorize(I_MCP, M_CYAN)} ${colorize(`×${configCounts.mcp}`, M_CYAN)} ${dim("MCPs")}`);
   if (configCounts.hooks > 0)
-    parts.push(`${colorize(I_HOOK, M_COMMENT)} ${colorize(`×${configCounts.hooks}`, M_COMMENT)} ${dim("hooks")}`);
+    parts.push(`${colorize(I_HOOK, M_YELLOW)} ${colorize(`×${configCounts.hooks}`, M_YELLOW)} ${dim("hooks")}`);
   if (parts.length === 0) return null;
   return parts.join(` ${SEP} `);
 }
@@ -386,7 +397,7 @@ function renderRunningToolsLine(transcript: TranscriptData): string[] | null {
       : "";
     const elapsed = fmtDurationShort(Date.now() - t.startTime.getTime());
     parts.push(
-      `${M_PINK} ${colorize(t.name, M_CYAN)}${target} ${colorize(`(${elapsed})`, M_COMMENT)}`,
+      `${colorize(I_RUN, M_YELLOW)} ${colorize(t.name, M_CYAN)}${target} ${colorize(`(${elapsed})`, M_COMMENT)}`,
     );
   }
   if (parts.length === 0) return null;
@@ -424,7 +435,7 @@ function renderAgentsLine(transcript: TranscriptData): string[] | null {
       : "";
     const elapsed = fmtDurationShort(Date.now() - a.startTime.getTime());
     parts.push(
-      `${M_PINK} ${colorize(a.type, M_PURPLE)}${model}${desc} ${colorize(`(${elapsed})`, M_COMMENT)}`,
+      `${colorize(I_RUN, M_YELLOW)} ${colorize(a.type, M_PURPLE)}${model}${desc} ${colorize(`(${elapsed})`, M_COMMENT)}`,
     );
   }
 
@@ -449,7 +460,7 @@ function renderTodosLine(transcript: TranscriptData): string[] | null {
     const statusIcon =
       t.status === "completed" ? I_DONE : t.status === "in_progress" ? I_RUN : I_TODO;
     const statusColor =
-      t.status === "completed" ? M_GREEN : t.status === "in_progress" ? M_PINK : M_COMMENT;
+      t.status === "completed" ? M_GREEN : t.status === "in_progress" ? M_YELLOW : M_COMMENT;
     const content = t.content.length > 50 ? `${t.content.slice(0, 50)}...` : t.content;
     const count =
       t.status === "completed" ? "" : ` ${colorize(`(${done}/${total})`, M_COMMENT)}`;
