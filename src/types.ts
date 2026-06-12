@@ -97,6 +97,7 @@ export interface ConfigCounts {
   rules: number;
   mcp: number;
   hooks: number;
+  skills: number;
 }
 
 // === Bridge Output (sent over Unix socket /tmp/shannon-<uid>.sock as NDJSON) ===
@@ -169,6 +170,7 @@ export interface ShannonBridgeData {
     rules: number;
     mcp: number;
     hooks: number;
+    skills: number;
   };
 
   session_duration_ms: number | null;

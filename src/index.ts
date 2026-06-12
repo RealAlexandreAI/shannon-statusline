@@ -138,6 +138,7 @@ function assembleBridgeData(
       rules: configCounts.rules,
       mcp: configCounts.mcp,
       hooks: configCounts.hooks,
+      skills: configCounts.skills,
     },
 
     session_duration_ms: transcript.sessionStart

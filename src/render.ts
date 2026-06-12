@@ -1,6 +1,5 @@
 import { shortenDisplayPath } from "./path.js";
 import { getContextPercent, getModelName } from "./stdin.js";
-import { sparkline, gradientText, boxTop, boxBottom, boxRow, badge, codeChangeBar } from "./effects.js";
 import type {
   ConfigCounts,
   GitStatus,
@@ -91,6 +90,7 @@ const I_RUN = "↻";
 const I_TODO = "▸";
 const I_CLAUDE = "※";
 const I_HOOK = "↩";
+const I_SKILL = "★";
 
 // ── Progress bars ───────────────────────────────────────────
 
@@ -278,26 +278,7 @@ function renderContextLine(stdin: StdinData): string {
     ctxBlock += ` ${colorize(`${I_WARN} high usage`, M_PINK)}`;
   }
 
-  // Sparkline: visualize token composition as a mini bar
   const usage = stdin.context_window?.current_usage;
-  let sparkBlock = "";
-  if (usage) {
-    const inTok = usage.input_tokens ?? 0;
-    const outTok = usage.output_tokens ?? 0;
-    const cacheIn = usage.cache_read_input_tokens ?? 0;
-    const cacheNew = usage.cache_creation_input_tokens ?? 0;
-    const cacheTotal = cacheIn + cacheNew;
-    const total = inTok + outTok + cacheTotal || 1;
-
-    // Build a 6-char sparkline from token ratios
-    const ratios = [
-      (inTok / total) * 8,
-      (outTok / total) * 8,
-      (cacheTotal / total) * 8,
-    ];
-    sparkBlock = ` ${sparkline(ratios, 6)}`;
-  }
-
   let tokenBlock = "";
   if (usage) {
     const inTok = fmtTokens(usage.input_tokens ?? 0);
@@ -317,7 +298,7 @@ function renderContextLine(stdin: StdinData): string {
     tokenBlock = `  ${tokenParts.join("  ")}`;
   }
 
-  return `${modelBadge}  ${SEP}  ${ctxBlock}${sparkBlock}  ${SEP}${tokenBlock}`;
+  return `${modelBadge}  ${SEP}  ${ctxBlock}  ${SEP}${tokenBlock}`;
 }
 
 function renderConfigLine(configCounts: ConfigCounts): string | null {
@@ -330,6 +311,8 @@ function renderConfigLine(configCounts: ConfigCounts): string | null {
     parts.push(`${colorize(I_MCP, M_CYAN)} ${colorize(`×${configCounts.mcp}`, M_CYAN)} ${dim("MCPs")}`);
   if (configCounts.hooks > 0)
     parts.push(`${colorize(I_HOOK, M_YELLOW)} ${colorize(`×${configCounts.hooks}`, M_YELLOW)} ${dim("hooks")}`);
+  if (configCounts.skills > 0)
+    parts.push(`${colorize(I_SKILL, M_PURPLE)} ${colorize(`×${configCounts.skills}`, M_PURPLE)} ${dim("skills")}`);
   if (parts.length === 0) return null;
   return parts.join(` ${SEP} `);
 }

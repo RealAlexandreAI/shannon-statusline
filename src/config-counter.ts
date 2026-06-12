@@ -3,7 +3,7 @@ import * as path from "node:path";
 import type { ConfigCounts } from "./types.js";
 
 export async function countConfigs(cwd: string): Promise<ConfigCounts> {
-  const result: ConfigCounts = { claudeMd: 0, rules: 0, mcp: 0, hooks: 0 };
+  const result: ConfigCounts = { claudeMd: 0, rules: 0, mcp: 0, hooks: 0, skills: 0 };
   if (!cwd) return result;
 
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
@@ -81,6 +81,17 @@ export async function countConfigs(cwd: string): Promise<ConfigCounts> {
     result.hooks = hookEventNames.size;
   } catch {
     // Ignore
+  }
+
+  // Count skills
+  const skillsDir = path.join(home, ".claude", "skills");
+  if (dirExists(skillsDir)) {
+    try {
+      const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+      result.skills = entries.filter((e) => e.isDirectory()).length;
+    } catch {
+      // Ignore
+    }
   }
 
   return result;
