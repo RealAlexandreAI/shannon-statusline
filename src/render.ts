@@ -96,7 +96,7 @@ const I_HOOK = "↩";
 
 // ── Progress bars ───────────────────────────────────────────
 
-function contextBar(percent: number, width: number): string {
+export function contextBar(percent: number, width: number): string {
   const safeW = Math.max(0, width);
   const safeP = Math.min(100, Math.max(0, percent));
   const filled = Math.round((safeP / 100) * safeW);
@@ -128,7 +128,7 @@ function contextBar(percent: number, width: number): string {
   return `${filledCells}${DIM}${"░".repeat(empty)}${RESET}`;
 }
 
-function contextPercentColor(percent: number): string {
+export function contextPercentColor(percent: number): string {
   if (percent >= 85) return rgb(255, 0, 144);
   if (percent >= 70) return rgb(255, 107, 0);
   return rgb(57, 255, 20);
@@ -136,13 +136,13 @@ function contextPercentColor(percent: number): string {
 
 // ── Formatters ──────────────────────────────────────────────
 
-function fmtTokens(n: number): string {
+export function fmtTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return `${n}`;
 }
 
-function fmtDurationShort(ms: number): string {
+export function fmtDurationShort(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   const seconds = ms / 1000;
   if (seconds < 60) return `${seconds.toFixed(0)}s`;
@@ -159,6 +159,10 @@ function fmtDurationShort(ms: number): string {
 const RAIN_CHARS = "ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ0123456789λΨΩΔΦ";
 
 const RAIN_COLS = 6;
+
+export function rainVisibleWidth(): number {
+  return RAIN_COLS + (RAIN_COLS - 1); // 6 chars + 5 spaces = 11
+}
 
 const RAIN_SPEED_MS = 900;
 const RAIN_COL_OFFSET_MS = 280;
@@ -181,7 +185,7 @@ function rainCell(row: number, col: number, now: number, totalRows: number): str
   return `${rgb(8, 8, 8)}${ch}${RESET}`;
 }
 
-function makeRainRow(row: number, now: number, totalRows: number): string {
+export function makeRainRow(row: number, now: number, totalRows: number): string {
   const cells: string[] = [];
   for (let c = 0; c < RAIN_COLS; c++) {
     cells.push(rainCell(row, c, now, totalRows));
@@ -309,7 +313,7 @@ type SepState = "idle" | "waiting" | "done";
 const DONE_LINGER_MS = 3000;
 let _doneEpoch = 0;
 
-function detectSepState(stdin: StdinData, transcript: TranscriptData): SepState {
+export function detectSepState(stdin: StdinData, transcript: TranscriptData): SepState {
   const style = stdin.output_style?.name ?? "";
   if (style === "waiting_input" || style === "ask_user" || style === "waiting") {
     return "waiting";
@@ -327,7 +331,7 @@ function detectSepState(stdin: StdinData, transcript: TranscriptData): SepState 
   return "idle";
 }
 
-function makeSeparator(state: SepState, width: number): string {
+export function makeSeparator(state: SepState, width: number): string {
   const now = Date.now();
 
   if (state === "waiting") {
