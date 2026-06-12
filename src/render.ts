@@ -318,7 +318,7 @@ function renderConfigLine(configCounts: ConfigCounts): string | null {
   if (configCounts.mcp > 0)
     parts.push(`${colorize(I_MCP, M_CYAN)} ${colorize(`×${configCounts.mcp}`, M_CYAN)} ${dim("MCPs")}`);
   if (configCounts.hooks > 0)
-    parts.push(`${colorize(I_HOOK, M_PINK)} ${colorize(`×${configCounts.hooks}`, M_PINK)} ${dim("hooks")}`);
+    parts.push(`${colorize(I_HOOK, M_COMMENT)} ${colorize(`×${configCounts.hooks}`, M_COMMENT)} ${dim("hooks")}`);
   if (parts.length === 0) return null;
   return parts.join(` ${SEP} `);
 }
