@@ -9,13 +9,28 @@ export async function getGitStatus(cwd: string): Promise<GitStatus | null> {
   if (!cwd) return null;
 
   try {
-    // Branch name
-    const { stdout: branchOut } = await execFileAsync(
-      "git",
-      ["rev-parse", "--abbrev-ref", "HEAD"],
-      { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" },
-    );
-    const branch = branchOut.trim();
+    // Branch name — try multiple methods for no-commit repos
+    let branch = "";
+    try {
+      const { stdout } = await execFileAsync(
+        "git",
+        ["rev-parse", "--abbrev-ref", "HEAD"],
+        { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" },
+      );
+      branch = stdout.trim();
+    } catch {
+      // No commits yet — try symbolic-ref
+      try {
+        const { stdout } = await execFileAsync(
+          "git",
+          ["symbolic-ref", "--short", "HEAD"],
+          { cwd, timeout: GIT_TIMEOUT, encoding: "utf8" },
+        );
+        branch = stdout.trim();
+      } catch {
+        // Bare repo or detached HEAD
+      }
+    }
     if (!branch) return null;
 
     // Dirty state + file stats
