@@ -3,14 +3,31 @@ import { fileURLToPath } from "node:url";
 import { writeBridge } from "./bridge.js";
 import { countConfigs } from "./config-counter.js";
 import { getGitStatus } from "./git.js";
+import { renderPowerline } from "./render-powerline.js";
 import { render } from "./render.js";
 import { runSetup } from "./setup.js";
 import { readStdin } from "./stdin.js";
 import { parseTranscript } from "./transcript.js";
 import type { ShannonBridgeData } from "./types.js";
 
+function parseArgs(): { style: "cyberpunk" | "powerline"; nerdFont: boolean } {
+  const args = process.argv.slice(2);
+  let style: "cyberpunk" | "powerline" = "cyberpunk";
+  let nerdFont = true;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--style" && args[i + 1]) {
+      style = args[i + 1] as "cyberpunk" | "powerline";
+      i++;
+    } else if (args[i] === "--no-nerd-font") {
+      nerdFont = false;
+    }
+  }
+  return { style, nerdFont };
+}
+
 export async function main(): Promise<void> {
   try {
+    const { style, nerdFont } = parseArgs();
     const stdin = await readStdin();
     if (!stdin) {
       // boot — no input yet (Claude Code sends empty Data on first tick)
@@ -30,8 +47,11 @@ export async function main(): Promise<void> {
     // Session duration
     const sessionDuration = formatSessionDuration(transcript.sessionStart);
 
-    // Render terminal HUD (stdout)
-    render(stdin, transcript, git, configCounts, sessionDuration);
+    if (style === "powerline") {
+      renderPowerline(stdin, transcript, git, configCounts, sessionDuration, { nerdFont });
+    } else {
+      render(stdin, transcript, git, configCounts, sessionDuration);
+    }
 
     // Write bridge file for Shannon GUI
     const bridgeData = assembleBridgeData(stdin, transcript, git, configCounts);
