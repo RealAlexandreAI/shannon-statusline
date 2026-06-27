@@ -42,29 +42,22 @@ Each line has Matrix-style katakana rain on the right. No Nerd Font needed.
 
 ```bash
 npm install -g shannon-statusline
-shannon-statusline setup
 ```
 
-`setup` detects your Node.js, writes `~/.shannon/shannon-statusline/run.sh`, and patches `~/.claude/settings.json`. Restart Claude Code — done.
-
-> **No bundled runtime dependency.** Uses whatever `node` is in your PATH. Immune to system library upgrades.
-
----
-
-## Manual config
-
-If you prefer to wire it yourself, add to `~/.claude/settings.json`:
+Then add to `~/.claude/settings.json`:
 
 ```json
 {
   "statusLine": {
-    "type": "command",
-    "command": "shannon-statusline"
+    "command": "shannon-statusline",
+    "type": "command"
   }
 }
 ```
 
-Or scope it to one project via `.claude/settings.json` at the repo root.
+Restart Claude Code — done.
+
+> **No bundled runtime dependency.** Uses whatever `node` is in your PATH. Immune to system library upgrades.
 
 ---
 
