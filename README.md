@@ -59,8 +59,7 @@ If you prefer to wire it yourself, add to `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "shannon-statusline",
-    "padding": 0
+    "command": "shannon-statusline"
   }
 }
 ```
