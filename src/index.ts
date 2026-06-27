@@ -5,7 +5,6 @@ import { countConfigs } from "./config-counter.js";
 import { getGitStatus } from "./git.js";
 import { renderPowerline } from "./render-powerline.js";
 import { render } from "./render.js";
-import { runSetup } from "./setup.js";
 import { readStdin } from "./stdin.js";
 import { parseTranscript } from "./transcript.js";
 import type { ShannonBridgeData } from "./types.js";
@@ -195,9 +194,5 @@ const isSamePath = (a: string, b: string): boolean => {
 };
 
 if (argvPath && isSamePath(argvPath, scriptPath)) {
-  if (process.argv[2] === "setup") {
-    void runSetup();
-  } else {
-    void main();
-  }
+  void main();
 }
