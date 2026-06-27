@@ -35,4 +35,4 @@ jobs:
         run: bunx tsc --noEmit
 
       - name: Publish
-        run: npm publish --access public
+        run: npx npm@latest publish --access public
