@@ -2,6 +2,7 @@ import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { writeBridge } from "./bridge.js";
 import { countConfigs } from "./config-counter.js";
+import { loadConfig } from "./config.js";
 import { getGitStatus } from "./git.js";
 import { renderPowerline } from "./render-powerline.js";
 import { render } from "./render.js";
@@ -35,6 +36,7 @@ export async function main(): Promise<void> {
 
     const transcriptPath = stdin.transcript_path ?? "";
     const cwd = stdin.cwd ?? stdin.workspace?.current_dir ?? "";
+    const config = loadConfig();
 
     // Collect data in parallel
     const [transcript, git, configCounts] = await Promise.all([
@@ -49,7 +51,7 @@ export async function main(): Promise<void> {
     if (style === "powerline") {
       renderPowerline(stdin, transcript, git, configCounts, sessionDuration, { nerdFont });
     } else {
-      render(stdin, transcript, git, configCounts, sessionDuration);
+      render(stdin, transcript, git, configCounts, sessionDuration, config);
     }
 
     // Write bridge file for Shannon GUI

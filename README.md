@@ -20,7 +20,7 @@ A live HUD rendered below every Claude Code response:
 
 ```
 ⌘ ~/D/project  │  ⎇ main* ↑2 !3 +1  │  ✦ 12m  │  ⊟ auto
-λ Opus  │  ⊡ ████████░░░░ 65% (200k)  │  ↑ 36k  ↓ 300  ⊗ 8.5k
+λ Opus  │  ⊡ ████████░░░░ 65% (200k)  │  ↑ 36k  ↓ 300  ⊗ 8.5k  │  ⚡ TTFT~1.24s · ↓ ~62.4 tok/s · ~312 tok
 ※ ×3 CLAUDE.md  │  ⊕ ×4 MCPs  │  ↩ ×12 hooks
 ──────────────────────────────────────────────────────
 ✔ Read ×12  │  ✔ Edit ×7  │  ✔ Bash ×4
@@ -34,7 +34,7 @@ A live HUD rendered below every Claude Code response:
 ✔ Explore: search docs for tag refs
 ```
 
-Each line has Matrix-style katakana rain on the right. No Nerd Font needed.
+Each line has Matrix-style katakana rain on the left. No Nerd Font needed.
 
 ---
 
@@ -50,7 +50,8 @@ Then add to `~/.claude/settings.json`:
 {
   "statusLine": {
     "command": "shannon-statusline",
-    "type": "command"
+    "type": "command",
+    "refreshInterval": 1
   }
 }
 ```
@@ -58,6 +59,34 @@ Then add to `~/.claude/settings.json`:
 Restart Claude Code — done.
 
 > **No bundled runtime dependency.** Uses whatever `node` is in your PATH. Immune to system library upgrades.
+
+## Configuration
+
+Plugin-specific settings live outside Claude Code's `statusLine` schema, at `~/.shannon/shannon-statusline/config.json`:
+
+```json
+{
+  "rain": false
+}
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `rain` | boolean | `true` | Show the left-side matrix rain in the cyberpunk renderer |
+
+The powerline renderer has no matrix rain. Invalid or missing configuration keeps the default (`rain: true`).
+
+## Response throughput
+
+The HUD can show the latest response as:
+
+```
+⚡ TTFT~1.24s · ↓ ~62.4 tok/s · ~312 tok
+```
+
+These are transcript-observed estimates. `TTFT~` measures the time from the preceding user/tool event to the first assistant transcript event. The rate uses the output token usage and the time between assistant transcript events. It is not provider-reported TTFT or server-side decode throughput, and the segment may be partial when a provider does not write incremental assistant records.
+
+`refreshInterval: 1` asks Claude Code to invoke the statusline at least once per second in addition to event-driven updates. Without it, the HUD still updates on Claude Code's normal statusline events but usually shows the completed response rather than a live stream.
 
 ---
 

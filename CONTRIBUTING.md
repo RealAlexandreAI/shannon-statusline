@@ -44,7 +44,9 @@ src/
   index.ts          — 入口：stdin 解析 → 并行数据收集 → render + bridge
   render.ts         — 赛博朋克 ANSI HUD 渲染（7 行）
   bridge.ts         — 写入 JSON Bridge 文件
+  config.ts         — 插件配置（`~/.shannon/shannon-statusline/config.json`）
   transcript.ts     — JSONL transcript 解析
+  throughput.ts     — transcript 观测速度格式化
   git.ts            — Git 状态检测
   config-counter.ts — 配置文件计数（CLAUDE.md/rules/MCP/hooks）
   stdin.ts          — stdin payload 解析
@@ -59,6 +61,8 @@ dist/               — 编译产物（.gitignore，npm publish 时打包）
 - 模块单一职责：渲染逻辑只在 `render.ts`，I/O 只在边界（`index.ts` / `bridge.ts`）
 - 注释和代码使用英文；用户面向的字符串若涉及中文请同时支持英文回退
 - 不引入运行时依赖（`dependencies` 必须保持为空，devDependencies 仅类型 + 构建工具）—— 这个包的卖点之一就是零运行时依赖
+- `rain` 属于插件自己的配置，不写入 Claude Code `statusLine` 对象；默认值必须保持为 `true`
+- 速度指标必须标明是 transcript-observed estimate，不得伪称 provider 的 TTFT 或 decode throughput
 
 ---
 

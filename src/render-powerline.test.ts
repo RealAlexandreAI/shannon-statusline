@@ -32,6 +32,7 @@ const emptyTranscript: TranscriptData = {
   todos: [],
   fileActivity: [],
   sessionStart: null,
+  throughput: null,
 };
 
 const emptyConfig: ConfigCounts = {
@@ -197,6 +198,22 @@ describe("renderPowerline — segments", () => {
     );
     expect(lines.length).toBe(1);
     expect(stripAnsi(lines[0])).toContain("Bash");
+  });
+
+  it("shows response throughput (same line)", () => {
+    const transcript: TranscriptData = {
+      ...emptyTranscript,
+      throughput: {
+        ttftMs: 1240,
+        responseDurationMs: 5000,
+        outputTokens: 312,
+        tokensPerSecond: 62.4,
+      },
+    };
+    const lines = capture(() =>
+      renderPowerline(makeStdin(), transcript, null, emptyConfig, "", { nerdFont: false }),
+    );
+    expect(stripAnsi(lines[0])).toContain("62.4 tok/s");
   });
 });
 

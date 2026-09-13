@@ -1,5 +1,6 @@
 import { shortenDisplayPath } from "./path.js";
 import { getContextPercent, getModelName } from "./stdin.js";
+import { formatThroughputText } from "./throughput.js";
 import type {
   ConfigCounts,
   GitStatus,
@@ -110,6 +111,11 @@ function segCtx(stdin: StdinData): string | null {
   return `${s(c, `${icon_} ${b} ${pct}%`)}${tok}`;
 }
 
+function segThroughput(transcript: TranscriptData): string | null {
+  const text = formatThroughputText(transcript.throughput);
+  return text ? s(C.yellow, `${icon("⚡", "!")} ${text}`) : null;
+}
+
 function segTools(transcript: TranscriptData): string | null {
   const running = transcript.tools.filter((t) => t.status === "running");
   const completed = transcript.tools.filter((t) => t.status === "completed");
@@ -165,6 +171,7 @@ export function renderPowerline(
     segGit(git),
     segModel(stdin),
     segCtx(stdin),
+    segThroughput(transcript),
     segDuration(sessionDuration),
     segTools(transcript),
     segTodos(transcript),

@@ -71,6 +71,14 @@ export interface TranscriptData {
   todos: TodoItem[];
   fileActivity: string[];
   sessionStart: Date | null;
+  throughput: ResponseThroughput | null;
+}
+
+export interface ResponseThroughput {
+  ttftMs: number | null;
+  responseDurationMs: number | null;
+  outputTokens: number;
+  tokensPerSecond: number | null;
 }
 
 // === Git Data ===

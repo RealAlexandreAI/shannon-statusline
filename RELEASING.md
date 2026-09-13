@@ -1,6 +1,6 @@
 # Releasing
 
-`shannon-statusline` 的发版 SOP。所有面向 npm registry 的 `npm publish` 由维护者**手动**执行，不在 CI 里自动触发。
+`shannon-statusline` 的发版 SOP。推送 `v*` tag 后，GitHub Actions 的 `Publish` workflow 会构建、类型检查并通过 npm trusted publishing 自动发布。
 
 ---
 
@@ -45,7 +45,7 @@ npm version patch -m "chore: release v%s"
 git push origin main --follow-tags
 ```
 
-GitHub Actions 的 `CI` workflow 会自动跑 typecheck + build 验证 tag commit。**不会**自动 publish。
+GitHub Actions 的 `CI` workflow 只验证 `main` push 和 pull request；tag push 由 `Publish` workflow 处理 npm 发布。
 
 ### 3. （可选）创建 GitHub Release
 
@@ -58,20 +58,23 @@ gh release create vX.Y.Z \
 
 或在 GitHub 网页上手动 draft，自动从 commit 历史生成 changelog。
 
-### 4. 发布到 npm（**人工操作**）
+### 4. 发布到 npm（GitHub Actions）
 
-> ⚠️ 不要让 CI 跑这一步。维护者请喊持有 npm 凭据的人执行：
+`Publish` workflow 会执行：
+
+1. `bun install`
+2. `bun run build`
+3. `bunx tsc --noEmit`
+4. `npx npm@latest publish --access public`
+
+workflow 使用 `id-token: write` 和 npm trusted publisher，不需要把 npm token 写进仓库或 GitHub secrets。tag push 后可用以下命令观察：
 
 ```bash
-# 确保已 login
-npm whoami       # 应返回 npm 账号
-# 若未登录：npm login
-
-# 发布
-npm publish --access public
+gh run list --workflow Publish.yml --limit 5
+npm view shannon-statusline version
 ```
 
-`prepublishOnly` 会自动跑 `bun run build`，所以不需要手动构建。
+如果 GitHub Actions 因账户配额、workflow 权限或 trusted publisher 配置失败，先修复 workflow 失败原因；不要把 npm token 提交到仓库。
 
 ### 5. 同步到 Shannon GUI
 

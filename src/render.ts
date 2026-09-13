@@ -1,5 +1,7 @@
 import { shortenDisplayPath } from "./path.js";
 import { getContextPercent, getModelName } from "./stdin.js";
+import { DEFAULT_STATUSLINE_CONFIG, type StatuslineConfig } from "./config.js";
+import { formatThroughputText } from "./throughput.js";
 import type {
   ConfigCounts,
   GitStatus,
@@ -82,6 +84,7 @@ const I_IN = "↑";
 const I_OUT = "↓";
 const I_CACHE = "⊗";
 const I_CTX = "⊡";
+const I_SPEED = "⚡";
 const I_RULES = "≡";
 const I_MCP = "⊕";
 const I_WARN = "▲";
@@ -463,11 +466,18 @@ export function render(
   git: GitStatus | null,
   configCounts: ConfigCounts,
   sessionDuration: string,
+  config: StatuslineConfig = DEFAULT_STATUSLINE_CONFIG,
 ): void {
   const lines: string[] = [];
 
   lines.push(renderProjectLine(stdin, git, sessionDuration));
-  lines.push(renderContextLine(stdin));
+  const throughputText = formatThroughputText(transcript.throughput);
+  const contextLine = renderContextLine(stdin);
+  lines.push(
+    throughputText
+      ? `${contextLine} ${SEP} ${colorize(I_SPEED, M_YELLOW)} ${colorize(throughputText, M_CYAN)}`
+      : contextLine,
+  );
   const configLine = renderConfigLine(configCounts);
   if (configLine) lines.push(configLine);
 
@@ -494,6 +504,11 @@ export function render(
   }
 
   // ── Matrix rain — LEFT side, no width dependency ──
+  if (!config.rain) {
+    for (const line of lines) console.log(line);
+    return;
+  }
+
   const now = Date.now();
   const totalRows = lines.length;
 

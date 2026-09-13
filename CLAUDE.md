@@ -19,7 +19,9 @@ src/
   index.ts          entry: stdin → parallel collectors → render + bridge write
   render.ts         7-line cyberpunk ANSI HUD renderer
   bridge.ts         JSON bridge file writer
+  config.ts         plugin config (~/.shannon/shannon-statusline/config.json)
   transcript.ts     JSONL transcript parser (tools/agents/todos/file activity)
+  throughput.ts     transcript-observed response timing formatter
   git.ts            git status detection (branch/dirty/ahead/behind)
   config-counter.ts CLAUDE.md/rules/MCP/hooks file counter
   stdin.ts          stdin payload schema + parser
@@ -44,6 +46,8 @@ src/
 - No runtime deps — keep `dependencies` empty in `package.json`
 - All user-facing strings in `render.ts` are ANSI-colored; preserve NBSP-replacement to prevent terminal wrapping
 - Bridge JSON is a public contract — schema changes need version bump per `RELEASING.md`
+- `rain` is a plugin setting, not a Claude Code `statusLine` field; keep its default enabled for compatibility
+- Throughput labels are transcript-observed estimates; do not describe them as provider-reported TTFT/decode metrics
 
 ## Where things live
 

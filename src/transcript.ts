@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as readline from "node:readline";
 import type {
   AgentEntry,
+  ResponseThroughput,
   TodoItem,
   ToolEntry,
   TranscriptData,
@@ -21,6 +22,7 @@ export async function parseTranscript(
     todos: [],
     fileActivity: [],
     sessionStart: null,
+    throughput: null,
   };
 
   if (!transcriptPath || !fs.existsSync(transcriptPath)) {
@@ -32,6 +34,8 @@ export async function parseTranscript(
   const toolCountMap = new Map<string, number>();
   const fileSet = new Set<string>();
   const latestTodos: TodoItem[] = [];
+  const assistantMap = new Map<string, AssistantTiming>();
+  let previousMessageTimestamp: Date | null = null;
 
   try {
     const fileStream = fs.createReadStream(transcriptPath);
@@ -44,6 +48,7 @@ export async function parseTranscript(
       if (!line.trim()) continue;
       try {
         const entry = JSON.parse(line);
+        const timestamp = getEntryTimestamp(entry);
         processEntry(
           entry,
           toolMap,
@@ -52,7 +57,10 @@ export async function parseTranscript(
           fileSet,
           latestTodos,
           result,
+          assistantMap,
+          previousMessageTimestamp,
         );
+        if (timestamp && isConversationMessage(entry)) previousMessageTimestamp = timestamp;
       } catch {
         // Skip malformed lines
       }
@@ -66,6 +74,7 @@ export async function parseTranscript(
   result.agents = Array.from(agentMap.values()).slice(-MAX_AGENTS);
   result.todos = latestTodos;
   result.fileActivity = Array.from(fileSet).slice(-MAX_FILES);
+  result.throughput = summarizeThroughput(assistantMap);
 
   return result;
 }
@@ -78,16 +87,18 @@ function processEntry(
   fileSet: Set<string>,
   latestTodos: TodoItem[],
   result: TranscriptData,
+  assistantMap: Map<string, AssistantTiming>,
+  previousMessageTimestamp: Date | null,
 ): void {
-  const timestamp = entry.timestamp
-    ? new Date(entry.timestamp as string)
-    : new Date();
+  const parsedTimestamp = getEntryTimestamp(entry);
+  const timestamp = parsedTimestamp ?? new Date();
 
-  if (!result.sessionStart && entry.timestamp) {
+  if (!result.sessionStart && parsedTimestamp) {
     result.sessionStart = timestamp;
   }
 
   const message = entry.message as Record<string, unknown> | undefined;
+  recordAssistantMessage(message, parsedTimestamp, previousMessageTimestamp, assistantMap);
   const content = message?.content;
   if (!content || !Array.isArray(content)) return;
 
@@ -158,6 +169,75 @@ function processEntry(
       }
     }
   }
+}
+
+interface AssistantTiming {
+  requestStartedAt: Date | null;
+  firstTokenAt: Date;
+  lastTokenAt: Date;
+  outputTokens: number;
+}
+
+function getEntryTimestamp(entry: Record<string, unknown>): Date | null {
+  if (typeof entry.timestamp !== "string" && typeof entry.timestamp !== "number") return null;
+  const timestamp = new Date(entry.timestamp);
+  return Number.isNaN(timestamp.getTime()) ? null : timestamp;
+}
+
+function isConversationMessage(entry: Record<string, unknown>): boolean {
+  const message = entry.message as Record<string, unknown> | undefined;
+  return message?.role === "user" || message?.role === "assistant";
+}
+
+function recordAssistantMessage(
+  message: Record<string, unknown> | undefined,
+  timestamp: Date | null,
+  previousMessageTimestamp: Date | null,
+  assistantMap: Map<string, AssistantTiming>,
+): void {
+  if (!message || message.role !== "assistant" || typeof message.id !== "string" || !timestamp) return;
+
+  const usage = message.usage as Record<string, unknown> | undefined;
+  const outputTokens = typeof usage?.output_tokens === "number" ? usage.output_tokens : null;
+  const current = assistantMap.get(message.id);
+  if (current) {
+    current.lastTokenAt = timestamp;
+    if (outputTokens !== null) current.outputTokens = outputTokens;
+    return;
+  }
+
+  assistantMap.set(message.id, {
+    requestStartedAt: previousMessageTimestamp,
+    firstTokenAt: timestamp,
+    lastTokenAt: timestamp,
+    outputTokens: outputTokens ?? 0,
+  });
+}
+
+function summarizeThroughput(assistantMap: Map<string, AssistantTiming>): ResponseThroughput | null {
+  const latest = Array.from(assistantMap.values()).reduce<AssistantTiming | null>(
+    (current, candidate) => {
+      if (!current || candidate.lastTokenAt > current.lastTokenAt) return candidate;
+      return current;
+    },
+    null,
+  );
+  if (!latest) return null;
+
+  const ttftMs = latest.requestStartedAt
+    ? Math.max(0, latest.firstTokenAt.getTime() - latest.requestStartedAt.getTime())
+    : null;
+  const responseDurationMs = Math.max(0, latest.lastTokenAt.getTime() - latest.firstTokenAt.getTime());
+  const tokensPerSecond = responseDurationMs > 0 && latest.outputTokens > 0
+    ? latest.outputTokens / (responseDurationMs / 1000)
+    : null;
+
+  return {
+    ttftMs,
+    responseDurationMs,
+    outputTokens: latest.outputTokens,
+    tokensPerSecond,
+  };
 }
 
 function extractFilePath(
