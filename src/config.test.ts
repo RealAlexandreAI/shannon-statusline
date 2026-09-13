@@ -11,25 +11,32 @@ function makeHome(): string {
 }
 
 describe("loadConfig", () => {
-  it("defaults to rain enabled", () => {
+  it("defaults to rain and throughput enabled", () => {
     const home = makeHome();
-    expect(loadConfig(home)).toEqual({ rain: true });
+    expect(loadConfig(home)).toEqual({ rain: true, throughput: true });
     rmSync(home, { recursive: true, force: true });
   });
 
   it("respects rain false", () => {
     const home = makeHome();
     writeFileSync(getConfigPath(home), JSON.stringify({ rain: false }));
-    expect(loadConfig(home)).toEqual({ rain: false });
+    expect(loadConfig(home)).toEqual({ rain: false, throughput: true });
     rmSync(home, { recursive: true, force: true });
   });
 
   it("ignores invalid values and malformed JSON", () => {
     const home = makeHome();
-    writeFileSync(getConfigPath(home), JSON.stringify({ rain: "no" }));
-    expect(loadConfig(home)).toEqual({ rain: true });
+    writeFileSync(getConfigPath(home), JSON.stringify({ rain: "no", throughput: "no" }));
+    expect(loadConfig(home)).toEqual({ rain: true, throughput: true });
     writeFileSync(getConfigPath(home), "{ broken");
-    expect(loadConfig(home)).toEqual({ rain: true });
+    expect(loadConfig(home)).toEqual({ rain: true, throughput: true });
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it("respects throughput false", () => {
+    const home = makeHome();
+    writeFileSync(getConfigPath(home), JSON.stringify({ throughput: false }));
+    expect(loadConfig(home)).toEqual({ rain: true, throughput: false });
     rmSync(home, { recursive: true, force: true });
   });
 });

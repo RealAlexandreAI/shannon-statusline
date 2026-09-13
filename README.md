@@ -1,42 +1,18 @@
-<div align="center">
+<p align="center">
+  <img src="./shannon-statusline.png" alt="shannon-statusline terminal HUD preview" width="100%" />
+</p>
 
-<img src="shannon-statusline.png" alt="shannon-statusline preview" width="100%" />
+<h1 align="center">shannon-statusline</h1>
 
-# shannon-statusline
+<p align="center">
+  Live ANSI HUD for <a href="https://claude.ai/code">Claude Code</a> with project, model, context, throughput, tool, agent, and configuration state.
+</p>
 
-**Cyberpunk terminal HUD for [Claude Code](https://claude.ai/code)**
-
-[![npm version](https://img.shields.io/npm/v/shannon-statusline?color=ff0090&label=npm)](https://www.npmjs.com/package/shannon-statusline)
-[![license](https://img.shields.io/npm/l/shannon-statusline?color=39ff14)](./LICENSE)
-[![node](https://img.shields.io/node/v/shannon-statusline?color=00bfff)](./package.json)
-
-</div>
-
----
-
-## What you get
-
-A live HUD rendered below every Claude Code response:
-
-```
-⌘ ~/D/project  │  ⎇ main* ↑2 !3 +1  │  ✦ 12m  │  ⊟ auto
-λ Opus  │  ⊡ ████████░░░░ 65% (200k)  │  ↑ 36k  ↓ 300  ⊗ 8.5k  │  ⚡ TTFT~1.24s · ↓ ~62.4 tok/s · ~312 tok
-※ ×3 CLAUDE.md  │  ⊕ ×4 MCPs  │  ↩ ×12 hooks
-──────────────────────────────────────────────────────
-✔ Read ×12  │  ✔ Edit ×7  │  ✔ Bash ×4
-↻ Bash: ~/D/project/src (3s)
-──────────────────────────────────────────────────────
-↻ Fix login bug  (3/5)
-▸ Add OAuth flow
-✔ Refactor session store
-──────────────────────────────────────────────────────
-↻ Task [haiku]: implement auth (1m 2s)
-✔ Explore: search docs for tag refs
-```
-
-Each line has Matrix-style katakana rain on the left. No Nerd Font needed.
-
----
+<p align="center">
+  <a href="https://www.npmjs.com/package/shannon-statusline"><img src="https://img.shields.io/npm/v/shannon-statusline" alt="npm version" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/shannon-statusline" alt="MIT license" /></a>
+  <a href="./package.json"><img src="https://img.shields.io/node/v/shannon-statusline" alt="Node.js version" /></a>
+</p>
 
 ## Install
 
@@ -44,74 +20,88 @@ Each line has Matrix-style katakana rain on the left. No Nerd Font needed.
 npm install -g shannon-statusline
 ```
 
-Then add to `~/.claude/settings.json`:
+Add to `~/.claude/settings.json`:
 
 ```json
 {
   "statusLine": {
-    "command": "shannon-statusline",
     "type": "command",
+    "command": "shannon-statusline",
     "refreshInterval": 1
   }
 }
 ```
 
-Restart Claude Code — done.
+`refreshInterval` is measured in seconds. `1` refreshes the statusline at least once per second in addition to Claude Code events.
 
-> **No bundled runtime dependency.** Uses whatever `node` is in your PATH. Immune to system library upgrades.
+## HUD
+
+Cyberpunk mode renders below each Claude Code response:
+
+```text
+⌘ ~/D/project  │  ⎇ main* ↑2 !3 +1  │  ✦ 12m  │  ⊟ auto
+λ Opus · claude-opus-4-6  │  ⊡ ████████░░░░ 65% (200k)  │  ↑ 36k  ↓ 300  ⊗ 8.5k
+» TTFT 1.24s  │  Decode ~62.4 tok/s · ~312 tok
+※ ×3 CLAUDE.md  │  ⊕ ×4 MCPs  │  ↩ ×12 hooks  │  ★ ×5 Skills
+──────────────────────────────────────────────────────
+✔ Read ×12  │  ✔ Edit ×7  │  ✔ Bash ×4
+↻ Bash: ~/D/project/src (3s)
+```
+
+When `model.display_name` and `model.id` differ, both are shown. The ID reflects the active model variant.
 
 ## Configuration
 
-Plugin-specific settings live outside Claude Code's `statusLine` schema, at `~/.shannon/shannon-statusline/config.json`:
+Optional file: `~/.shannon/shannon-statusline/config.json`
 
 ```json
 {
-  "rain": false
+  "rain": true,
+  "throughput": true
 }
 ```
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `rain` | boolean | `true` | Show the left-side matrix rain in the cyberpunk renderer |
+| Option | Type | Default | Effect |
+|---|---|---:|---|
+| `rain` | boolean | `true` | Show the matrix column in cyberpunk mode. |
+| `throughput` | boolean | `true` | Show response metrics on line 3. |
 
-The powerline renderer has no matrix rain. Invalid or missing configuration keeps the default (`rain: true`).
+Invalid or missing values use the defaults. Powerline mode is single-line and uses `·` separators:
 
-## Response throughput
-
-The HUD can show the latest response as:
-
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "shannon-statusline --style powerline",
+    "refreshInterval": 1
+  }
+}
 ```
-⚡ TTFT~1.24s · ↓ ~62.4 tok/s · ~312 tok
-```
 
-These are transcript-observed estimates. `TTFT~` measures the time from the preceding user/tool event to the first assistant transcript event. The rate uses the output token usage and the time between assistant transcript events. It is not provider-reported TTFT or server-side decode throughput, and the segment may be partial when a provider does not write incremental assistant records.
+`throughput: false` also hides the throughput segment in powerline mode.
 
-`refreshInterval: 1` asks Claude Code to invoke the statusline at least once per second in addition to event-driven updates. Without it, the HUD still updates on Claude Code's normal statusline events but usually shows the completed response rather than a live stream.
+## Metrics
 
----
+- `TTFT`: transcript-observed time from the preceding user/tool event to the first assistant event.
+- `Decode`: transcript-observed output rate; `~` marks an estimate.
 
-## GUI bridge
+## Bridge
 
-Alongside the terminal HUD, the same data is pushed as NDJSON to a Unix socket at `/tmp/shannon-<uid>.sock`. Any local process listening on that socket receives live session state — model, context, tools, agents, todos, git, cost — on every hook tick.
-
-Socket absent → silent no-op, zero overhead.
-
----
+When a local consumer is listening, each invocation writes session data as NDJSON to `/tmp/shannon-<uid>.sock`.
 
 ## Development
 
 ```bash
-git clone https://github.com/RealAlexandreAI/shannon-statusline.git
-cd shannon-statusline
 bun install
+bun test
 bun run build
-bun run test:stdin   # smoke test with sample payload
+bun run test:stdin
 ```
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`RELEASING.md`](./RELEASING.md).
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [RELEASING.md](./RELEASING.md).
 
----
+Runtime requirement: Node.js `>= 22`.
 
 ## License
 
-[MIT](./LICENSE)
+MIT

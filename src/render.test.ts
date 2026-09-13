@@ -217,8 +217,78 @@ describe("render config", () => {
       null,
       emptyConfig,
       "",
-      { rain: false },
+      { rain: false, throughput: true },
     ));
     expect(lines[0]).toBe("");
+  });
+
+  it("puts throughput on its own line before config counts", () => {
+    const lines = capture(() => render(
+      { model: { display_name: "Opus", id: "claude-opus" }, context_window: { used_percentage: 10 } },
+      {
+        ...emptyTranscript,
+        throughput: { ttftMs: 1240, responseDurationMs: 5000, outputTokens: 312, tokensPerSecond: 62.4 },
+      },
+      null,
+      { ...emptyConfig, skills: 2 },
+      "",
+      { rain: false, throughput: true },
+    ));
+    expect(lines).toHaveLength(4);
+    expect(lines[2]).toContain("»");
+    expect(lines[2]).toContain("TTFT");
+    expect(lines[2]).toContain("1.24s");
+    expect(lines[2]).toContain("Decode");
+    expect(lines[2]).toContain("~62.4 tok/s · ~312 tok");
+    expect(lines[2]).toContain("\x1b[38;5;243mTTFT");
+    expect(lines[2]).toContain("\x1b[38;5;252m1.24s");
+    expect(lines[3]).toContain("Skills");
+  });
+
+  it("hides the throughput line when disabled", () => {
+    const lines = capture(() => render(
+      { context_window: { used_percentage: 10 } },
+      {
+        ...emptyTranscript,
+        throughput: { ttftMs: 1240, responseDurationMs: 5000, outputTokens: 312, tokensPerSecond: 62.4 },
+      },
+      null,
+      emptyConfig,
+      "",
+      { rain: false, throughput: false },
+    ));
+    expect(lines).toHaveLength(2);
+    expect(lines.join("\n")).not.toContain("TTFT");
+  });
+
+  it("shows the live model id when the display name is an alias", () => {
+    const lines = capture(() => render(
+      {
+        model: { display_name: "Deepseek-V4-Pro", id: "ttsw-cc-balanced[1M]" },
+        context_window: { used_percentage: 10 },
+      },
+      emptyTranscript,
+      null,
+      emptyConfig,
+      "",
+      { rain: false, throughput: true },
+    ));
+    expect(lines[1]).toContain("Deepseek-V4-Pro");
+    expect(lines[1]).toContain("· ttsw-cc-balanced[1M]");
+  });
+
+  it("keeps visible separators between classic HUD segments", () => {
+    const lines = capture(() => render(
+      {
+        model: { display_name: "Opus", id: "claude-opus-4-6" },
+        context_window: { used_percentage: 10 },
+      },
+      emptyTranscript,
+      null,
+      emptyConfig,
+      "",
+      { rain: false, throughput: true },
+    ));
+    expect(lines[1]).toContain("│");
   });
 });

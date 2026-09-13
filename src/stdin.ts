@@ -22,7 +22,14 @@ export async function readStdin(): Promise<StdinData | null> {
 }
 
 export function getModelName(stdin: StdinData): string {
-  return stdin.model?.display_name ?? stdin.model?.id ?? "Unknown";
+  return stdin.model?.display_name?.trim() || stdin.model?.id?.trim() || "Unknown";
+}
+
+export function getModelId(stdin: StdinData): string | null {
+  const id = stdin.model?.id?.trim();
+  const displayName = stdin.model?.display_name?.trim();
+  if (!id || !displayName || id === displayName) return null;
+  return id;
 }
 
 export function getContextPercent(stdin: StdinData): number {

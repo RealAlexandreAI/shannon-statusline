@@ -1,6 +1,6 @@
 import { shortenDisplayPath } from "./path.js";
-import { getContextPercent, getModelName } from "./stdin.js";
-import { formatThroughputText } from "./throughput.js";
+import { getContextPercent, getModelId, getModelName } from "./stdin.js";
+import { formatThroughputParts } from "./throughput.js";
 import type {
   ConfigCounts,
   GitStatus,
@@ -91,14 +91,16 @@ function segGit(git: GitStatus | null): string | null {
 function segModel(stdin: StdinData): string | null {
   const name = getModelName(stdin);
   if (!name || name === "Unknown") return null;
-  return s(C.purple, `${icon("\u25c6", "*")} ${name}`);
+  const modelId = getModelId(stdin);
+  const modelSuffix = modelId ? ` ${s(C.comment, `· ${modelId}`)}` : "";
+  return `${s(C.purple, `${icon("\u25c6", "*")} ${name}`)}${modelSuffix}`;
 }
 
 function segCtx(stdin: StdinData): string | null {
   const pct = getContextPercent(stdin);
   const b = bar(pct, 5);
   const c = pctClr(pct);
-  const icon_ = icon("\u2b21", "ctx");
+  const icon_ = icon("\u2b21", "#");
   const usage = stdin.context_window?.current_usage;
   let tok = "";
   if (usage) {
@@ -111,9 +113,12 @@ function segCtx(stdin: StdinData): string | null {
   return `${s(c, `${icon_} ${b} ${pct}%`)}${tok}`;
 }
 
-function segThroughput(transcript: TranscriptData): string | null {
-  const text = formatThroughputText(transcript.throughput);
-  return text ? s(C.yellow, `${icon("⚡", "!")} ${text}`) : null;
+function segThroughput(transcript: TranscriptData, showThroughput: boolean): string | null {
+  if (!showThroughput) return null;
+  const parts = formatThroughputParts(transcript.throughput);
+  if (!parts) return null;
+  const text = parts.map(({ key, value }) => `${s(C.comment, key)} ${s(C.text, value)}`).join(SEP);
+  return `${s(C.comment, icon("»", ">"))} ${text}`;
 }
 
 function segTools(transcript: TranscriptData): string | null {
@@ -161,7 +166,7 @@ export function renderPowerline(
   git: GitStatus | null,
   _configCounts: ConfigCounts,
   sessionDuration: string,
-  opts: { nerdFont?: boolean } = {},
+  opts: { nerdFont?: boolean; throughput?: boolean } = {},
 ): void {
   useNerd = opts.nerdFont ?? true;
 
@@ -171,7 +176,7 @@ export function renderPowerline(
     segGit(git),
     segModel(stdin),
     segCtx(stdin),
-    segThroughput(transcript),
+    segThroughput(transcript, opts.throughput ?? true),
     segDuration(sessionDuration),
     segTools(transcript),
     segTodos(transcript),

@@ -1,7 +1,7 @@
 import { shortenDisplayPath } from "./path.js";
-import { getContextPercent, getModelName } from "./stdin.js";
+import { getContextPercent, getModelId, getModelName } from "./stdin.js";
 import { DEFAULT_STATUSLINE_CONFIG, type StatuslineConfig } from "./config.js";
-import { formatThroughputText } from "./throughput.js";
+import { formatThroughputParts, type ThroughputPart } from "./throughput.js";
 import type {
   ConfigCounts,
   GitStatus,
@@ -71,7 +71,7 @@ function dim(text: string): string {
   return `${DIM}${text}${RESET}`;
 }
 
-const SEP = M_COMMENT;
+const SEP = colorize("│", M_COMMENT);
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ const I_IN = "↑";
 const I_OUT = "↓";
 const I_CACHE = "⊗";
 const I_CTX = "⊡";
-const I_SPEED = "⚡";
+const I_SPEED = "»";
 const I_RULES = "≡";
 const I_MCP = "⊕";
 const I_WARN = "▲";
@@ -258,7 +258,9 @@ function renderProjectLine(
 
 function renderContextLine(stdin: StdinData): string {
   const modelName = getModelName(stdin);
-  const modelBadge = `${colorize(I_MODEL, M_CYAN)} ${colorize(modelName, M_CYAN)}`;
+  const modelId = getModelId(stdin);
+  const modelSuffix = modelId ? ` ${dim(`· ${modelId}`)}` : "";
+  const modelBadge = `${colorize(I_MODEL, M_CYAN)} ${colorize(modelName, M_CYAN)}${modelSuffix}`;
 
   const barWidth = 10;
   const percent = getContextPercent(stdin);
@@ -307,17 +309,24 @@ function renderContextLine(stdin: StdinData): string {
 function renderConfigLine(configCounts: ConfigCounts): string | null {
   const parts: string[] = [];
   if (configCounts.claudeMd > 0)
-    parts.push(`${colorize(I_CLAUDE, M_ORANGE)} ${colorize(`×${configCounts.claudeMd}`, M_ORANGE)} ${dim("CLAUDE.md")}`);
+    parts.push(`${colorize(I_CLAUDE, M_ORANGE)} ${colorize(`×${configCounts.claudeMd}`, M_FG)} ${dim("CLAUDE.md")}`);
   if (configCounts.rules > 0)
-    parts.push(`${colorize(I_RULES, M_COMMENT)} ${colorize(`×${configCounts.rules}`, M_COMMENT)} ${dim("rules")}`);
+    parts.push(`${colorize(I_RULES, M_COMMENT)} ${colorize(`×${configCounts.rules}`, M_FG)} ${dim("rules")}`);
   if (configCounts.mcp > 0)
-    parts.push(`${colorize(I_MCP, M_CYAN)} ${colorize(`×${configCounts.mcp}`, M_CYAN)} ${dim("MCPs")}`);
+    parts.push(`${colorize(I_MCP, M_CYAN)} ${colorize(`×${configCounts.mcp}`, M_FG)} ${dim("MCPs")}`);
   if (configCounts.hooks > 0)
-    parts.push(`${colorize(I_HOOK, M_YELLOW)} ${colorize(`×${configCounts.hooks}`, M_YELLOW)} ${dim("hooks")}`);
+    parts.push(`${colorize(I_HOOK, M_YELLOW)} ${colorize(`×${configCounts.hooks}`, M_FG)} ${dim("hooks")}`);
   if (configCounts.skills > 0)
-    parts.push(`${colorize(I_SKILL, M_PURPLE)} ${colorize(`×${configCounts.skills}`, M_PURPLE)} ${dim("skills")}`);
+    parts.push(`${colorize(I_SKILL, M_PURPLE)} ${colorize(`×${configCounts.skills}`, M_FG)} ${dim("Skills")}`);
   if (parts.length === 0) return null;
   return parts.join(` ${SEP} `);
+}
+
+function renderThroughputLine(parts: ThroughputPart[]): string {
+  const metrics = parts
+    .map(({ key, value }) => `${colorize(key, M_COMMENT)} ${colorize(value, M_FG)}`)
+    .join(` ${SEP} `);
+  return `${colorize(I_SPEED, M_COMMENT)} ${metrics}`;
 }
 
 // ── Separator ───────────────────────────────────────────────
@@ -471,13 +480,10 @@ export function render(
   const lines: string[] = [];
 
   lines.push(renderProjectLine(stdin, git, sessionDuration));
-  const throughputText = formatThroughputText(transcript.throughput);
   const contextLine = renderContextLine(stdin);
-  lines.push(
-    throughputText
-      ? `${contextLine} ${SEP} ${colorize(I_SPEED, M_YELLOW)} ${colorize(throughputText, M_CYAN)}`
-      : contextLine,
-  );
+  lines.push(contextLine);
+  const throughputParts = config.throughput ? formatThroughputParts(transcript.throughput) : null;
+  if (throughputParts) lines.push(renderThroughputLine(throughputParts));
   const configLine = renderConfigLine(configCounts);
   if (configLine) lines.push(configLine);
 

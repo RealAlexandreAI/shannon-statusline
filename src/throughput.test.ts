@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatLatency, formatThroughputText } from "./throughput.js";
+import { formatLatency, formatThroughputParts, formatThroughputText } from "./throughput.js";
 
 describe("formatLatency", () => {
   it("uses milliseconds below one second", () => {
@@ -18,7 +18,16 @@ describe("formatThroughputText", () => {
       responseDurationMs: 5000,
       outputTokens: 312,
       tokensPerSecond: 62.4,
-    })).toBe("TTFT~1.24s · ↓ ~62.4 tok/s · ~312 tok");
+    })).toBe("TTFT 1.24s · Decode ~62.4 tok/s · ~312 tok");
+    expect(formatThroughputParts({
+      ttftMs: 1240,
+      responseDurationMs: 5000,
+      outputTokens: 312,
+      tokensPerSecond: 62.4,
+    })).toEqual([
+      { key: "TTFT", value: "1.24s" },
+      { key: "Decode", value: "~62.4 tok/s · ~312 tok" },
+    ]);
   });
 
   it("omits the rate when the transcript has one assistant event", () => {
@@ -27,7 +36,7 @@ describe("formatThroughputText", () => {
       responseDurationMs: 0,
       outputTokens: 12,
       tokensPerSecond: null,
-    })).toBe("TTFT~300ms · ~12 tok");
+    })).toBe("TTFT 300ms · Decode ~12 tok");
   });
 
   it("returns nothing without output usage", () => {

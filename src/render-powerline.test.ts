@@ -86,6 +86,20 @@ describe("renderPowerline — segments", () => {
     expect(stripAnsi(lines[0])).toContain("Sonnet");
   });
 
+  it("shows the live model id when the display name is an alias", () => {
+    const lines = capture(() =>
+      renderPowerline(
+        makeStdin({ model: { display_name: "Deepseek-V4-Pro", id: "ttsw-cc-balanced[1M]" } }),
+        emptyTranscript,
+        null,
+        emptyConfig,
+        "",
+        { nerdFont: false },
+      ),
+    );
+    expect(stripAnsi(lines[0])).toContain("Deepseek-V4-Pro · ttsw-cc-balanced[1M]");
+  });
+
   it("shows git branch", () => {
     const git: GitStatus = { branch: "main", isDirty: false, ahead: 0, behind: 0, fileStats: null };
     const lines = capture(() =>
@@ -213,7 +227,24 @@ describe("renderPowerline — segments", () => {
     const lines = capture(() =>
       renderPowerline(makeStdin(), transcript, null, emptyConfig, "", { nerdFont: false }),
     );
-    expect(stripAnsi(lines[0])).toContain("62.4 tok/s");
+    expect(stripAnsi(lines[0])).toContain("> TTFT 1.24s");
+    expect(stripAnsi(lines[0])).toContain("Decode ~62.4 tok/s");
+  });
+
+  it("hides response throughput when disabled", () => {
+    const transcript: TranscriptData = {
+      ...emptyTranscript,
+      throughput: {
+        ttftMs: 1240,
+        responseDurationMs: 5000,
+        outputTokens: 312,
+        tokensPerSecond: 62.4,
+      },
+    };
+    const lines = capture(() =>
+      renderPowerline(makeStdin(), transcript, null, emptyConfig, "", { nerdFont: false, throughput: false }),
+    );
+    expect(stripAnsi(lines[0])).not.toContain("TTFT");
   });
 });
 

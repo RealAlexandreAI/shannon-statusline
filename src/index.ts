@@ -49,7 +49,10 @@ export async function main(): Promise<void> {
     const sessionDuration = formatSessionDuration(transcript.sessionStart);
 
     if (style === "powerline") {
-      renderPowerline(stdin, transcript, git, configCounts, sessionDuration, { nerdFont });
+      renderPowerline(stdin, transcript, git, configCounts, sessionDuration, {
+        nerdFont,
+        throughput: config.throughput,
+      });
     } else {
       render(stdin, transcript, git, configCounts, sessionDuration, config);
     }
