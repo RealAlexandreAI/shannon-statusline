@@ -36,7 +36,7 @@
   "bugs": {
     "url": "https://github.com/RealAlexandreAI/shannon-statusline/issues"
   },
-  "packageManager": "bun@1.3.11",
+  "packageManager": "bun@1.4.2",
   "keywords": [
     "claude-code",
     "statusline",
@@ -52,7 +52,7 @@
     "bun": ">=1.3.11"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "typescript": "^6.0.2"
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2"
   }
 }
